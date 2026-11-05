@@ -1,0 +1,31 @@
+{
+  "sentAt": 1793900600,
+  "schema": 1,
+  "addonVersion": "0.1.0",
+  "characters": [
+    {
+      "key": {
+        "region": "eu",
+        "firstName": "Davina",
+        "surname": "Asaria",
+        "guid": "Player-4242-0A1B2C3D",
+        "realmName": "CAMWOW EU5 Realm 1 PvE"
+      },
+      "snapshot": {
+        "capturedAt": 1793900600,
+        "level": 22,
+        "xp": 500,
+        "xpMax": 12400,
+        "money": 384512,
+        "playedTotal": 81834,
+        "playedLevel": 600,
+        "zone": "Duskwood",
+        "classFile": "PRIEST",
+        "raceFile": "Troll",
+        "sex": 3,
+        "faction": "Horde"
+      },
+      "events": []
+    }
+  ]
+}

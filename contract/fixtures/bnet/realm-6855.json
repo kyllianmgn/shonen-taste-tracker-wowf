@@ -1,0 +1,15 @@
+{
+  "id": 6855,
+  "name": "CAMWOW EU5 Realm 1 PvE",
+  "slug": "camwow-eu5-realm-1-pve",
+  "region": {
+    "name": "CAMWOW Europe",
+    "id": 93
+  },
+  "locale": "enGB",
+  "timezone": "Europe/Paris",
+  "type": {
+    "type": "NORMAL",
+    "name": "Normal"
+  }
+}

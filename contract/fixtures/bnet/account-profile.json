@@ -1,0 +1,37 @@
+{
+  "wow_accounts": [
+    {
+      "id": 1234567,
+      "characters": [
+        {
+          "character": {
+            "href": "https://eu.api.blizzard.com/profile/wow/character/davina-asaria?namespace=profile-forever-eu"
+          },
+          "protected_character": {
+            "href": "https://eu.api.blizzard.com/profile/user/wow/protected-character/6855-716333?namespace=profile-forever-eu"
+          },
+          "name": "Davina",
+          "surname": "Asaria",
+          "id": 716333,
+          "playable_class": {
+            "name": "Priest",
+            "id": 5
+          },
+          "playable_race": {
+            "name": "Troll",
+            "id": 8
+          },
+          "gender": {
+            "type": "FEMALE",
+            "name": "Female"
+          },
+          "faction": {
+            "type": "HORDE",
+            "name": "Horde"
+          },
+          "level": 23
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+ForeverTrackerDB = {
+  ["schema"] = 1,
+  ["addonVersion"] = "0.1.0",
+  ["settings"] = { ["interval"] = 15, ["levelPrompt"] = true, ["debug"] = false },
+  ["characters"] = {
+    ["Player-4242-0A1B2C3D"] = {
+      ["key"] = { ["region"] = "eu", ["firstName"] = "Davina", ["surname"] = "Asaria",
+                  ["guid"] = "Player-4242-0A1B2C3D", ["realmName"] = "CAMWOW EU5 Realm 1 PvE" },
+      ["snapshot"] = {
+        ["capturedAt"] = 1793900000, ["level"] = 23, ["xp"] = 4120, ["xpMax"] = 13600, ["rested"] = 2100,
+        ["money"] = 384512, ["playedTotal"] = 81234, ["playedLevel"] = 2310,
+        ["zone"] = "Duskwood", ["subZone"] = "Darkshire", ["mapId"] = 1431,
+        ["classFile"] = "PRIEST", ["raceFile"] = "Troll", ["sex"] = 3, ["faction"] = "Horde",
+        ["guild"] = "Les Veilleurs", ["guildRank"] = "Membre", ["ilvl"] = 21, ["deaths"] = 4, ["honor"] = 0,
+        ["equipment"] = { { ["slot"] = 1, ["itemId"] = 7720, ["link"] = "|cff1eff00|Hitem:7720::...|h[...]|h|r" } },
+        ["professions"] = { { ["name"] = "Herboristerie", ["rank"] = 112, ["max"] = 150 } },
+        ["reputations"] = { { ["factionId"] = 76, ["name"] = "Orgrimmar", ["standing"] = 5, ["value"] = 1200, ["max"] = 6000 } }
+      },
+      ["events"] = {
+        { ["id"] = "Player-4242-0A1B2C3D-1793899000-1", ["type"] = "SESSION_START", ["at"] = 1793899000,
+          ["data"] = { ["level"] = 22, ["zone"] = "Duskwood" } },
+        { ["id"] = "Player-4242-0A1B2C3D-1793899800-2", ["type"] = "LEVEL_UP", ["at"] = 1793899800,
+          ["data"] = { ["level"] = 23, ["playedTotal"] = 80900, ["zone"] = "Duskwood" } }
+      }
+    },
+    ["Player-4242-0B2C3D4E"] = {
+      ["key"] = { ["region"] = "eu", ["firstName"] = "Morwen", ["surname"] = "Asaria",
+                  ["guid"] = "Player-4242-0B2C3D4E", ["realmName"] = "CAMWOW EU5 Realm 1 PvE" },
+      ["snapshot"] = {
+        ["capturedAt"] = 1793800000, ["level"] = 3, ["xp"] = 120, ["xpMax"] = 1400,
+        ["money"] = 15, ["playedTotal"] = 1830, ["playedLevel"] = 410,
+        ["zone"] = "Durotar", ["subZone"] = "Valley of Trials", ["mapId"] = 1411,
+        ["classFile"] = "WARRIOR", ["raceFile"] = "Orc", ["sex"] = 2, ["faction"] = "Horde",
+        ["deaths"] = 0,
+        ["equipment"] = {},
+        ["professions"] = {},
+        ["reputations"] = {}
+      },
+      ["events"] = {}
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "sentAt": 1793900600,
+  "schema": 1,
+  "addonVersion": "0.1.0",
+  "characters": [
+    {
+      "key": {
+        "region": "eu",
+        "firstName": "Davina",
+        "surname": "Asaria",
+        "guid": "Player-4242-0A1B2C3D",
+        "realmName": "CAMWOW EU5 Realm 1 PvE"
+      },
+      "snapshot": {
+        "capturedAt": 1793900600,
+        "level": 31,
+        "xp": 100,
+        "xpMax": 24300,
+        "money": 384512,
+        "playedTotal": 81834,
+        "playedLevel": 30,
+        "zone": "Duskwood",
+        "classFile": "PRIEST",
+        "raceFile": "Troll",
+        "sex": 3,
+        "faction": "Horde"
+      },
+      "events": [
+        {
+          "id": "Player-4242-0A1B2C3D-1793900070-3",
+          "type": "LEVEL_UP",
+          "at": 1793900070,
+          "data": {
+            "level": 24,
+            "zone": "Duskwood"
+          }
+        },
+        {
+          "id": "Player-4242-0A1B2C3D-1793900140-4",
+          "type": "LEVEL_UP",
+          "at": 1793900140,
+          "data": {
+            "level": 25,
+            "zone": "Duskwood"
+          }
+        },
+        {
+          "id": "Player-4242-0A1B2C3D-1793900210-5",
+          "type": "LEVEL_UP",
+          "at": 1793900210,
+          "data": {
+            "level": 26,
+            "zone": "Duskwood"
+          }
+        },
+        {
+          "id": "Player-4242-0A1B2C3D-1793900280-6",
+          "type": "LEVEL_UP",
+          "at": 1793900280,
+          "data": {
+            "level": 27,
+            "zone": "Duskwood"
+          }
+        },
+        {
+          "id": "Player-4242-0A1B2C3D-1793900350-7",
+          "type": "LEVEL_UP",
+          "at": 1793900350,
+          "data": {
+            "level": 28,
+            "zone": "Duskwood"
+          }
+        },
+        {
+          "id": "Player-4242-0A1B2C3D-1793900420-8",
+          "type": "LEVEL_UP",
+          "at": 1793900420,
+          "data": {
+            "level": 29,
+            "zone": "Duskwood"
+          }
+        },
+        {
+          "id": "Player-4242-0A1B2C3D-1793900490-9",
+          "type": "LEVEL_UP",
+          "at": 1793900490,
+          "data": {
+            "level": 30,
+            "zone": "Duskwood"
+          }
+        },
+        {
+          "id": "Player-4242-0A1B2C3D-1793900560-10",
+          "type": "LEVEL_UP",
+          "at": 1793900560,
+          "data": {
+            "level": 31,
+            "zone": "Duskwood"
+          }
+        }
+      ]
+    }
+  ]
+}
