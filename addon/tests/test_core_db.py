@@ -161,3 +161,13 @@ def test_addon_table_exposes_current_character(wow):
     assert wow.ns.guid == GUID
     same_db = wow.lua.eval("function(ns) return ns.db == ForeverTrackerDB end")
     assert same_db(wow.ns) is True
+
+
+def test_addon_creates_no_global_besides_its_saved_variable(wow):
+    list_globals = wow.lua.eval(
+        "function() local t = {} for k in pairs(_G) do t[#t + 1] = k end return t end"
+    )
+    before = set(list_globals().values())
+    wow.load_addon()
+    wow.fire("PLAYER_LOGIN")
+    assert set(list_globals().values()) - before == {"ForeverTrackerDB"}
