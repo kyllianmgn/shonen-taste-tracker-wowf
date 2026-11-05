@@ -84,9 +84,18 @@ void main() {
   test('without schema guidance: non-empty sequences become arrays, everything else objects', () {
     expect(normalizeLuaValue(lua({1: 'a', 2: 'b'}), null, root), ['a', 'b']);
     expect(normalizeLuaValue(lua(), null, root), {});
-    expect(normalizeLuaValue(lua({'k': lua({1: 1})}), null, root), {
-      'k': [1],
-    });
+    expect(
+      normalizeLuaValue(
+        lua({
+          'k': lua({1: 1}),
+        }),
+        null,
+        root,
+      ),
+      {
+        'k': [1],
+      },
+    );
   });
 
   test('uses an additionalProperties schema for unknown keys', () {

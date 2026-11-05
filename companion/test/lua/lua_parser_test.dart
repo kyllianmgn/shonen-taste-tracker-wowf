@@ -176,10 +176,7 @@ void main() {
     });
 
     test('rejects nesting deeper than the limit', () {
-      expect(
-        parseError('X = ${'{' * 200}${'}' * 200}').code,
-        LuaParseErrorCode.nestingTooDeep,
-      );
+      expect(parseError('X = ${'{' * 200}${'}' * 200}').code, LuaParseErrorCode.nestingTooDeep);
     });
   });
 

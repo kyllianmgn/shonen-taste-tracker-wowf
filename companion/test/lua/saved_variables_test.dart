@@ -23,9 +23,9 @@ String _join(List<String> parts) => parts.join(Platform.pathSeparator);
 
 final Directory fixturesDir = Directory(_join([contractDir.path, 'fixtures', 'savedvariables']));
 
-final Map<String, Object?> syncRequestSchema =
-    jsonDecode(File(_join([contractDir.path, 'schemas', 'sync.request.json'])).readAsStringSync())
-        as Map<String, Object?>;
+final Map<String, Object?> syncRequestSchema = jsonDecode(
+  File(_join([contractDir.path, 'schemas', 'sync.request.json'])).readAsStringSync(),
+) as Map<String, Object?>;
 
 List<int> fixture(String name) => File(_join([fixturesDir.path, name])).readAsBytesSync();
 
@@ -135,7 +135,10 @@ void main() {
 
   group('ForeverTracker.empty.lua', () {
     test('returns null without error: nothing to send', () {
-      expect(parseSavedVariablesBytes(fixture('ForeverTracker.empty.lua'), syncRequestSchema), isNull);
+      expect(
+        parseSavedVariablesBytes(fixture('ForeverTracker.empty.lua'), syncRequestSchema),
+        isNull,
+      );
     });
   });
 
@@ -160,19 +163,17 @@ void main() {
       final src = utf8.decode(fixture('ForeverTracker.malicious.lua'));
       final withoutCall = src.replaceFirst('os.execute("calc")', 'false');
       final concat = catchParse(withoutCall);
-      expect([concat.code, concat.line, concat.column], [
-        LuaParseErrorCode.nonLiteralExpression,
-        9,
-        84,
-      ]);
+      expect(
+        [concat.code, concat.line, concat.column],
+        [LuaParseErrorCode.nonLiteralExpression, 9, 84],
+      );
 
       final withoutConcat = withoutCall.replaceFirst('"Asa" .. "ria"', '"Asaria"');
       final global = catchParse(withoutConcat);
-      expect([global.code, global.line, global.column], [
-        LuaParseErrorCode.nonLiteralExpression,
-        10,
-        70,
-      ]);
+      expect(
+        [global.code, global.line, global.column],
+        [LuaParseErrorCode.nonLiteralExpression, 10, 70],
+      );
     });
   });
 
@@ -198,7 +199,10 @@ void main() {
         (equipment[0] as Map)['link'],
         "|cff1eff00|Hitem:7720::::::::23:::::::::|h[Whitemane's Chapeau]|h|r",
       );
-      expect((equipment[1] as Map)['link'], '|cffffffff|Hitem:6060::::::::23:::::::::|h[Flax Vest]|h|r');
+      expect(
+        (equipment[1] as Map)['link'],
+        '|cffffffff|Hitem:6060::::::::23:::::::::|h[Flax Vest]|h|r',
+      );
       expect(snapshot['professions'], isA<List>().having((l) => l.length, 'length', 0));
       expect(snapshot['reputations'], isA<List>().having((l) => l.length, 'length', 0));
       final data0 = (events[0] as Map)['data'];
@@ -211,8 +215,7 @@ void main() {
   });
 
   test('covers every SavedVariables fixture', () {
-    final names =
-        fixturesDir.listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
+    final names = fixturesDir.listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
     expect(names, [
       'ForeverTracker.empty.lua',
       'ForeverTracker.escapes.lua',
