@@ -1,13 +1,14 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ContractValidator, findContractDir } from '../contract/contract-validator';
 import { LuaParseError } from './lua-parser';
 import { JsonSchema } from './normalize';
 import { parseSavedVariables } from './saved-variables';
 
-const repoRoot = join(__dirname, '..', '..', '..', '..');
-const fixturesDir = join(repoRoot, 'contract', 'fixtures', 'savedvariables');
+const contractDir = findContractDir(__dirname);
+const fixturesDir = join(contractDir, 'fixtures', 'savedvariables');
 const syncRequestSchema = JSON.parse(
-  readFileSync(join(repoRoot, 'contract', 'schemas', 'sync.request.json'), 'utf8'),
+  readFileSync(join(contractDir, 'schemas', 'sync.request.json'), 'utf8'),
 ) as JsonSchema;
 
 function fixture(name: string): Buffer {
@@ -162,6 +163,24 @@ describe('parseSavedVariables (contract fixtures)', () => {
       'ForeverTracker.sample.lua',
     ]);
   });
+});
+
+describe('parseSavedVariables (contract validation)', () => {
+  const validator = new ContractValidator(contractDir);
+
+  it.each(['ForeverTracker.sample.lua', 'ForeverTracker.escapes.lua'])(
+    'normalizes %s into characters that sync.request accepts',
+    (name) => {
+      const result = parseSavedVariables(fixture(name), syncRequestSchema)!;
+      const payload = {
+        sentAt: 1793900100,
+        schema: result.schema,
+        addonVersion: result.addonVersion,
+        characters: result.characters,
+      };
+      expect(validator.validate('sync.request', payload)).toEqual({ ok: true });
+    },
+  );
 });
 
 describe('parseSavedVariables (structure)', () => {
