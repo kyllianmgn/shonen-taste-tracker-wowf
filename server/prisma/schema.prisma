@@ -1,0 +1,214 @@
+// Translation of the reference schema in docs/02-spec-server.md « Modèle de données ».
+// Owned by task S-02: any change goes through its own task (docs/04 « Règles »).
+//
+// Not expressible here, added as raw SQL in the init migration:
+//   - character_identity_key: UNIQUE (region, lower(first_name), lower(surname))
+//   - character_role_check:   CHECK (role IN ('main', 'alt', 'untracked'))
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "cjs"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model GuildConfig {
+  guildId           String   @id @map("guild_id")
+  boardChannelId    String?  @map("board_channel_id")
+  /// One or several messages when the board is paginated.
+  boardMessageIds   String[] @default([]) @map("board_message_ids")
+  logsChannelId     String?  @map("logs_channel_id")
+  /// 1 = every level, 10 = every 10 levels.
+  levelAnnounceStep Int      @default(1) @map("level_announce_step")
+  logDeaths         Boolean  @default(false) @map("log_deaths")
+  /// level | played | name
+  boardSort         String   @default("level") @map("board_sort")
+  timezone          String   @default("Europe/Paris")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  memberships Membership[]
+
+  @@map("guild_config")
+}
+
+model Player {
+  discordUserId String   @id @map("discord_user_id")
+  hideMoney     Boolean  @default(false) @map("hide_money")
+  hideZone      Boolean  @default(false) @map("hide_zone")
+  hidePresence  Boolean  @default(false) @map("hide_presence")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  memberships  Membership[]
+  characters   Character[]
+  devices      Device[]
+  pairingCodes PairingCode[]
+  sessions     GameSession[]
+  bnetToken    BnetToken?
+  oauthStates  OauthState[]
+
+  @@map("player")
+}
+
+/// A player shown on a given Discord guild.
+model Membership {
+  guildId       String @map("guild_id")
+  discordUserId String @map("discord_user_id")
+
+  guild  GuildConfig @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  player Player      @relation(fields: [discordUserId], references: [discordUserId], onDelete: Cascade)
+
+  @@id([guildId, discordUserId])
+  @@map("membership")
+}
+
+model Character {
+  id             BigInt  @id @default(autoincrement())
+  region         String
+  firstName      String  @map("first_name")
+  surname        String
+  guid           String?
+  realmName      String? @map("realm_name")
+  /// NORMAL | PVP | RP | PVP_RP
+  ruleset        String?
+  classFile      String? @map("class_file")
+  raceFile       String? @map("race_file")
+  faction        String?
+  ownerId        String? @map("owner_id")
+  /// main | alt | untracked (CHECK constraint in the migration)
+  role           String?
+  bnetVerified   Boolean @default(false) @map("bnet_verified")
+  lastSnapshotId BigInt? @map("last_snapshot_id")
+
+  owner     Player?       @relation(fields: [ownerId], references: [discordUserId], onDelete: SetNull)
+  snapshots Snapshot[]
+  sessions  GameSession[]
+  events    GameEvent[]
+
+  // At most one main and one alt per owner.
+  @@unique([ownerId], map: "character_one_main_per_owner", where: raw("role = 'main'"))
+  @@unique([ownerId], map: "character_one_alt_per_owner", where: raw("role = 'alt'"))
+  @@map("character")
+}
+
+model Device {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String    @map("owner_id")
+  tokenSha256 String    @unique @map("token_sha256")
+  name        String?
+  appVersion  String?   @map("app_version")
+  os          String?
+  lastSeenAt  DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  gameRunning Boolean   @default(false) @map("game_running")
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  owner Player @relation(fields: [ownerId], references: [discordUserId], onDelete: Cascade)
+
+  @@map("device")
+}
+
+model PairingCode {
+  codeSha256 String    @id @map("code_sha256")
+  ownerId    String    @map("owner_id")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt     DateTime? @map("used_at") @db.Timestamptz(6)
+
+  owner Player @relation(fields: [ownerId], references: [discordUserId], onDelete: Cascade)
+
+  @@map("pairing_code")
+}
+
+model Snapshot {
+  id          BigInt   @id @default(autoincrement())
+  characterId BigInt   @map("character_id")
+  capturedAt  DateTime @map("captured_at") @db.Timestamptz(6)
+  level       Int
+  xp          Int?
+  xpMax       Int?     @map("xp_max")
+  money       BigInt?
+  playedTotal Int?     @map("played_total")
+  zone        String?
+  subZone     String?  @map("sub_zone")
+  /// Equipment, professions, reputations, etc.
+  detail      Json
+  /// app | manual | bnet_account | bnet_public
+  source      String   @default("app")
+  flags       String[] @default([])
+  receivedAt  DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@map("snapshot")
+}
+
+model GameSession {
+  id          BigInt    @id @default(autoincrement())
+  ownerId     String    @map("owner_id")
+  /// Known after the first sync.
+  characterId BigInt?   @map("character_id")
+  startedAt   DateTime  @map("started_at") @db.Timestamptz(6)
+  endedAt     DateTime? @map("ended_at") @db.Timestamptz(6)
+  /// game_closed | heartbeat_timeout
+  endReason   String?   @map("end_reason")
+  levelStart  Int?      @map("level_start")
+  levelEnd    Int?      @map("level_end")
+  moneyStart  BigInt?   @map("money_start")
+  moneyEnd    BigInt?   @map("money_end")
+  playedStart Int?      @map("played_start")
+  playedEnd   Int?      @map("played_end")
+
+  owner     Player     @relation(fields: [ownerId], references: [discordUserId], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: NoAction)
+
+  @@map("game_session")
+}
+
+model GameEvent {
+  id          BigInt    @id @default(autoincrement())
+  characterId BigInt    @map("character_id")
+  /// Id provided by the addon.
+  eventId     String    @map("event_id")
+  type        String
+  at          DateTime  @db.Timestamptz(6)
+  data        Json
+  flags       String[]  @default([])
+  /// null = not posted in the logs channel yet.
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, eventId])
+  @@map("game_event")
+}
+
+/// Base mode only.
+model BnetToken {
+  ownerId        String   @id @map("owner_id")
+  region         String
+  /// AES-256-GCM, key TOKEN_ENC_KEY.
+  tokenEncrypted Bytes    @map("token_encrypted")
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(6)
+
+  owner Player @relation(fields: [ownerId], references: [discordUserId], onDelete: Cascade)
+
+  @@map("bnet_token")
+}
+
+/// /lier battlenet flow.
+model OauthState {
+  stateSha256      String    @id @map("state_sha256")
+  ownerId          String    @map("owner_id")
+  guildId          String?   @map("guild_id")
+  region           String
+  /// Used to edit the ephemeral reply (valid 15 min).
+  interactionToken String    @map("interaction_token")
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt           DateTime? @map("used_at") @db.Timestamptz(6)
+
+  owner Player @relation(fields: [ownerId], references: [discordUserId], onDelete: Cascade)
+
+  @@map("oauth_state")
+}
