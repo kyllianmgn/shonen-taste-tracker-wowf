@@ -26,12 +26,13 @@ dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
 | `lua/` | parseur de littéraux Lua | C-02 |
 | `wow_files/` | dossier `_forever_`, fichiers SavedVariables, surveillance | C-03 |
 | `process/` | détection du jeu | C-04 |
-| `api/` | client HTTP, appairage (interface vide pour l'instant) | C-05 |
+| `api/` | client HTTP du contrat, erreurs typées, appairage, jeton dans le Gestionnaire d'identifiants | C-05 |
+| `ui/first_run/` | fenêtre de premier lancement (dossier du jeu, code, « Démarrer avec Windows ») | C-05 |
 | `sync/` | battements et synchros (interface vide pour l'instant) | C-06 |
 | `queue/` | file hors ligne | C-07 |
 
 Les modules métier n'importent pas Flutter : seuls `main.dart` et `ui/tray/tray_controller.dart`
-touchent aux plugins.
+touchent aux plugins (`ui/first_run/` n'utilise que les widgets).
 
 ## Lecture des SavedVariables (`lua/`)
 
@@ -74,12 +75,51 @@ L'appli lit les fichiers du joueur et n'y écrit jamais.
   ensuite, seulement s'il change ou s'il est supprimé puis recréé. Un fichier supprimé avant
   d'être stable n'est pas émis.
 
+## Client API et appairage (`api/`, `ui/first_run/`)
+
+`ApiClient` couvre les quatre routes de docs/02 « Contrat d'échange » : `POST /v1/devices/pair`,
+`POST /v1/heartbeat`, `POST /v1/sync`, `DELETE /v1/devices/me`. L'adresse vient de
+`--dart-define=API_BASE_URL=…` ; sans elle, aucun appel ne part (`ApiNotConfigured`). Délai de 30 s.
+
+Chaque échec est une `ApiException` typée :
+
+| Cas | Classe | Rejouable (C-07) |
+| --- | --- | --- |
+| `400 validation_failed` | `ValidationFailed` | non |
+| `401 invalid_token` (ou tout 401) | `InvalidToken` | non |
+| `404 code_unknown` · `409 code_used` · `410 code_expired` | `CodeUnknown` · `CodeUsed` · `CodeExpired` | non |
+| `413 payload_too_large` · `422 unknown_schema` | `PayloadTooLarge` · `SchemaRejected` | non |
+| `429 rate_limited` | `RateLimited` (`retryAfter` lu dans `Retry-After`, secondes ou date HTTP) | oui |
+| 5xx | `ServerError` | oui |
+| réseau, TLS, délai dépassé | `NetworkError` | oui |
+| autre statut, ou corps hors contrat | `UnexpectedResponse` | non |
+
+Le jeton d'appareil (`DeviceToken`, dont `toString` masque la valeur) est rangé dans le
+Gestionnaire d'identifiants Windows, identifiant générique `ForeverTrackerSync/deviceToken`
+(`CredWriteW` / `CredReadW` / `CredDeleteW` via `dart:ffi`, persistance « cet ordinateur »).
+Les logs ne contiennent que méthode, chemin et statut : ni corps, ni en-tête, ni message du
+serveur, ni code d'appairage.
+
+« Délier » appelle `DELETE /v1/devices/me` puis oublie le jeton, même si le serveur est injoignable.
+
+La fenêtre de premier lancement ne s'ouvre au démarrage que si aucun jeton n'est stocké ; le menu
+« Appairer » rouvre la même fenêtre. Elle reprend le dossier de `settings.json` s'il est encore
+valide, sinon essaie les emplacements par défaut, sinon demande le dossier (sélecteur natif via
+`file_selector`). Le code tapé est mis en majuscules, espaces et tirets retirés, et vérifié
+(8 caractères, sans 0/O/1/I) avant tout envoi. Après l'appairage : `gameFolder`,
+`startWithWindows` et `firstRunCompleted` sont enregistrés, puis la fenêtre se cache.
+
+Tests : les corps envoyés sont validés contre `contract/schemas` avec `json_schema`
+(dépendance de dev) ; `test/api/credential_manager_token_store_test.dart` utilise le vrai
+Gestionnaire d'identifiants sous un nom jetable.
+
 ## Fichiers locaux
 
 Dans `%APPDATA%\ForeverTrackerSync\` :
 
 - `settings.json` : `gameFolder`, `startWithWindows` (vrai par défaut), `firstRunCompleted`, `version`.
-  Aucun secret ; un fichier illisible redonne les valeurs par défaut.
+  Aucun secret ; un fichier illisible redonne les valeurs par défaut. Le jeton est dans le
+  Gestionnaire d'identifiants Windows (`ForeverTrackerSync/deviceToken`).
 - `forevertracker-sync.log` puis `.1.log` … `.4.log` : 1 Mo par fichier, 5 fichiers au plus.
   Jamais de jeton, de code ni de contenu complet de SavedVariables.
 
