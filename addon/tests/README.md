@@ -48,7 +48,12 @@ def test_example(wow):
 - `wow.ns` is the addon's private table (the second value of `...` in each file).
 - `wow.wow.click(frame)` and `wow.wow.slash("/ftr sync")` simulate a click and a typed command;
   `wow.reload_calls()` lists `ReloadUI()` calls with `hardware = True` only when they came from one of them.
-- `RequestTimePlayed()` fires `TIME_PLAYED_MSG` right away with `state.playedTotal` / `state.playedLevel`.
+- `wow.set_state(...)` converts Python dicts and lists into Lua tables, e.g.
+  `wow.set_state(inventory={1: "|cff...|Hitem:7720:...|h[...]|h|r"})`.
+- `RequestTimePlayed()` fires `TIME_PLAYED_MSG` right away with `state.playedTotal` / `state.playedLevel`
+  and counts its calls in `wow.wow.playedRequests`.
+- `print()` and `DEFAULT_CHAT_FRAME:AddMessage()` are captured in `WowTest.chat`
+  (`lua_to_python(wow.wow.chat)`); `state.locale` sets `GetLocale()` (default `frFR`).
 - `Bindings.xml` and other XML files are skipped: the loader runs only `.lua` files.
 - `load_saved_variables` executes the file like the game client does. Use it only with fixtures from
   this repo: the server and the companion parse SavedVariables as literals and never execute them.
