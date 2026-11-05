@@ -55,6 +55,25 @@ une fois (nom seul) pour confirmer le vrai nom de l'exécutable sur une install 
 `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` + `QueryFullProcessImageNameW` ; aucun droit
 admin, aucune console lancée, les processus protégés sont ignorés.
 
+## Fichiers du jeu (`wow_files/`)
+
+L'appli lit les fichiers du joueur et n'y écrit jamais.
+
+- **Dossier du jeu** (`ForeverFolderLocator`) : essaie
+  `C:\Program Files (x86)\World of Warcraft\_forever_` puis `C:\Program Files\World of Warcraft\_forever_`.
+  Sinon le joueur choisit son dossier World of Warcraft (le dossier `_forever_` lui-même est accepté
+  aussi). Le dossier n'est valide que s'il contient `_forever_\WTF`. `gameFolder` garde le chemin
+  du dossier `_forever_`.
+- **Découverte** (`discoverSavedVariables`) : tous les
+  `_forever_\WTF\Account\*\SavedVariables\ForeverTracker.lua`, un par compte. Les noms sont comparés
+  sans tenir compte de la casse ; les `.bak` et les dossiers par perso sont ignorés.
+- **Surveillance** (`SavedVariablesWatcher`) : watcher système récursif sur `_forever_\WTF`, plus une
+  relecture toutes les 10 s (liste des comptes, taille et date de modification) qui sert de repli
+  et relance le watcher s'il est tombé. Un changement n'est émis (`FileReady(path)`) qu'après 2 s
+  sans changement de taille ni de date. Au démarrage, chaque fichier présent est émis une fois ;
+  ensuite, seulement s'il change ou s'il est supprimé puis recréé. Un fichier supprimé avant
+  d'être stable n'est pas émis.
+
 ## Fichiers locaux
 
 Dans `%APPDATA%\ForeverTrackerSync\` :
