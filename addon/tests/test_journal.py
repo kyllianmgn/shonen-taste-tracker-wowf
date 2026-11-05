@@ -10,6 +10,8 @@ import pytest
 GUID = "Player-4242-0A1B2C3D"
 LOGIN_TIME = 1793900000
 MAX_EVENTS = 300
+# Neither GetProfessions nor the skill-line fallback returns anything at login.
+NO_PROFESSIONS = {"professions": [], "skillLines": []}
 ID_PATTERN = re.compile(r"^(Player-\d+-[0-9A-F]+)-(\d+)-(\d+)$")
 
 
@@ -36,14 +38,9 @@ def saved_character(snapshot="", events_lua=""):
     )
 
 
-def set_professions(wow, professions):
-    """What Collect.lua (A-03) writes into the snapshot on SKILL_LINES_CHANGED."""
-    snap = wow.ns.character.snapshot
-    snap.professions = wow.to_lua([{"name": n, "rank": r, "max": 150} for n, r in professions])
-
-
 def skill_change(wow, professions):
-    set_professions(wow, professions)
+    """Ranks returned by GetProfessionInfo; Collect.lua copies them into the snapshot first."""
+    wow.set_state(professions=[{"name": n, "rank": r, "max": 300} for n, r in professions], skillLines=[])
     wow.fire("SKILL_LINES_CHANGED")
 
 
@@ -358,7 +355,7 @@ def test_guild_change_is_recorded_once(wow):
 
 @pytest.mark.parametrize("tier", [75, 150, 225, 300])
 def test_profession_tier_when_rank_reaches_a_threshold(wow, tier):
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", tier - 1)])
     skill_change(wow, [("Herboristerie", tier)])
     (event,) = of_type(wow, "PROFESSION_TIER")
@@ -367,14 +364,14 @@ def test_profession_tier_when_rank_reaches_a_threshold(wow, tier):
 
 @pytest.mark.parametrize("rank", [74, 76, 149, 151, 299, 301, 375])
 def test_no_profession_tier_without_crossing(wow, rank):
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", rank - 1)])
     skill_change(wow, [("Herboristerie", rank)])
     assert of_type(wow, "PROFESSION_TIER") == []
 
 
 def test_profession_tier_crossed_by_a_jump_is_one_event_with_the_new_rank(wow):
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", 140)])
     skill_change(wow, [("Herboristerie", 230)])
     (event,) = of_type(wow, "PROFESSION_TIER")
@@ -382,7 +379,7 @@ def test_profession_tier_crossed_by_a_jump_is_one_event_with_the_new_rank(wow):
 
 
 def test_profession_tier_per_profession(wow):
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", 74), ("Alchimie", 149)])
     skill_change(wow, [("Herboristerie", 75), ("Alchimie", 149)])
     skill_change(wow, [("Herboristerie", 75), ("Alchimie", 150)])
@@ -393,7 +390,7 @@ def test_profession_tier_per_profession(wow):
 
 
 def test_no_profession_tier_when_rank_does_not_change(wow):
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", 74)])
     skill_change(wow, [("Herboristerie", 75)])
     skill_change(wow, [("Herboristerie", 75)])
@@ -401,7 +398,7 @@ def test_no_profession_tier_when_rank_does_not_change(wow):
 
 
 def test_no_profession_tier_when_rank_goes_down_then_back(wow):
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", 80)])
     skill_change(wow, [("Herboristerie", 1)])  # unlearnt and learnt again
     skill_change(wow, [("Herboristerie", 74)])
@@ -410,21 +407,30 @@ def test_no_profession_tier_when_rank_goes_down_then_back(wow):
 
 def test_first_reading_of_a_profession_is_only_a_baseline(wow):
     # Profession data can load after login: a rank seen for the first time is not a crossing.
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", 112)])
+    skill_change(wow, [("Herboristerie", 112), ("Minage", 160)])
     assert of_type(wow, "PROFESSION_TIER") == []
+
+
+def test_profession_tier_against_the_ranks_read_at_login(wow):
+    logged_in(wow, professions=[{"name": "Herboristerie", "rank": 149, "max": 150}])
+    skill_change(wow, [("Herboristerie", 150)])
+    assert of_type(wow, "PROFESSION_TIER")[0]["data"] == {"name": "Herboristerie", "rank": 150}
 
 
 def test_profession_tier_against_the_ranks_of_the_last_session(wow):
     wow.load_saved_variables(saved_character(
         snapshot=', professions = { { name = "Herboristerie", rank = 74, max = 150 } }'
     ))
-    logged_in(wow)
+    logged_in(wow, **NO_PROFESSIONS)
     skill_change(wow, [("Herboristerie", 75)])
     assert of_type(wow, "PROFESSION_TIER")[0]["data"] == {"name": "Herboristerie", "rank": 75}
 
 
-def test_skill_change_without_professions_in_snapshot_is_ignored(wow):
-    logged_in(wow)
+def test_skill_change_without_profession_api_is_ignored(wow):
+    logged_in(wow, **NO_PROFESSIONS)
+    for api in ("GetProfessions", "GetNumSkillLines"):
+        wow.wow.removeApi(api)
     wow.fire("SKILL_LINES_CHANGED")
     assert of_type(wow, "PROFESSION_TIER") == []
