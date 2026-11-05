@@ -20,6 +20,20 @@ docker compose -f docker-compose.dev.yml up -d   # PostgreSQL 16 on localhost:54
 
 Per-package commands are listed in [CLAUDE.md](CLAUDE.md).
 
+### Server
+
+```powershell
+cd server
+Copy-Item .env.example .env    # fill in the required variables
+npm ci                         # also generates the Prisma client
+npx prisma migrate dev         # apply migrations to the dev database
+npm run start:dev              # API on http://localhost:3000, GET /health
+```
+
+The server refuses to start and lists every missing or malformed variable.
+`npm run test:e2e` recreates the `forever_test` database on the dev Postgres
+(override with `TEST_DATABASE_URL`; the name must end with `_test`).
+
 ## Documentation
 
 Specs live in [`docs/`](docs/) (French):
