@@ -43,6 +43,9 @@ local function defaultState()
     inventory = {}, -- [slot] = item link
     inInstance = false,
     instanceType = "none",
+    instanceName = nil, -- GetInstanceInfo() name, e.g. "Les Mortemines"
+    instanceId = nil,   -- GetInstanceInfo() 8th return (instanceID)
+    inGuild = nil,      -- IsInGuild(); nil = derived from state.guild
     onTaxi = false,
     deadOrGhost = false,
     combatLockdown = false,
@@ -168,6 +171,22 @@ end
 
 function IsInInstance()
   return WowTest.state.inInstance, WowTest.state.instanceType
+end
+
+-- name, instanceType, difficultyID, difficultyName, maxPlayers,
+-- dynamicDifficulty, isDynamic, instanceID
+function GetInstanceInfo()
+  local s = WowTest.state
+  if not s.inInstance then
+    return s.zone, "none", 0, "", 0, 0, false, s.mapId
+  end
+  return s.instanceName, s.instanceType, 1, "Normal", 5, 0, false, s.instanceId
+end
+
+function IsInGuild()
+  local s = WowTest.state
+  if s.inGuild ~= nil then return s.inGuild end
+  return s.guild ~= nil
 end
 
 function UnitOnTaxi(unit) return unit == "player" and WowTest.state.onTaxi or false end
