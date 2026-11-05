@@ -90,6 +90,14 @@ Recalculé à la connexion, à chaque événement listé, et juste avant toute s
 | `deaths` (compteur) | incrémenté par l'addon | `PLAYER_DEAD` | Sûr |
 | `capturedAt` | `GetServerTime()` | à chaque calcul | Sûr |
 
+Lecture des appels « à vérifier » (A-03) : chaque API est cherchée au moment de l'appel et appelée sous `pcall` ; si elle manque, lève une erreur ou renvoie une valeur inutilisable, le champ est absent du snapshot.
+
+- `ilvl` : moyenne équipée (2ᵉ retour de `GetAverageItemLevel`), sinon la moyenne globale, arrondie à l'entier inférieur.
+- `professions[]` : `GetProfessions` + `GetProfessionInfo` ; si ce chemin échoue ou ne renvoie rien, les lignes de `GetSkillLineInfo` rangées sous les en-têtes `TRADE_SKILLS` et `SECONDARY_SKILLS` (chaînes localisées du client ; armes et langues ignorées). 20 métiers au plus.
+- `reputations[]` : les factions visibles dans le panneau Réputation (le contenu d'un en-tête replié n'est pas lu), en-têtes sans réputation ignorés ; `standing` = `reaction`, `value` et `max` relatifs au palier courant. 200 au plus.
+- `honor` : entier positif ou nul de `UnitHonor("player")`.
+- Avec `/ftr debug on`, la connexion affiche pour chaque API « trouvée », « absente » ou « trouvée, erreur à l'appel », et la source des métiers (`ns.ReportGuardedApis()`), pour la checklist en jeu de A-07.
+
 Talents : hors périmètre v1 (illisibles sur Forever pendant le stress test).
 
 ### Journal d'événements
