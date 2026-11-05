@@ -33,6 +33,15 @@ dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
 Les modules métier n'importent pas Flutter : seuls `main.dart` et `ui/tray/tray_controller.dart`
 touchent aux plugins.
 
+## Lecture des SavedVariables (`lua/`)
+
+`parseSavedVariablesBytes(octets, schéma sync.request)` lit `ForeverTracker.lua` sans jamais
+l'exécuter : parseur de littéraux écrit à la main, portage exact de `server/src/common/lua` (S-04),
+mêmes erreurs (`NonLiteralExpression`, `SyntaxError`, `SourceTooLarge` au-delà de 512 Ko,
+`NestingTooDeep` au-delà de 100 niveaux) avec ligne et colonne. Les tables vides deviennent `[]`
+ou `{}` selon `contract/schemas/sync.request.json`. `ForeverTrackerDB = nil` renvoie `null` :
+rien à envoyer. Les tests lisent directement `contract/fixtures/savedvariables/`.
+
 ## Fichiers locaux
 
 Dans `%APPDATA%\ForeverTrackerSync\` :
