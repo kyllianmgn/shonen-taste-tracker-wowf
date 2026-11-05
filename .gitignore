@@ -1,0 +1,38 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node / server / tools
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Python (addon tests)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Flutter / Dart (companion)
+companion/.dart_tool/
+companion/build/
+companion/.flutter-plugins
+companion/.flutter-plugins-dependencies
+companion/windows/flutter/ephemeral/
+.packages
+
+# Release artifacts
+*.zip
+release/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini
+.DS_Store
