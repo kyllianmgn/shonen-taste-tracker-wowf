@@ -58,6 +58,10 @@ def test_example(wow):
   `UnitHonor`, ...) are stubbed from `state` (`avgItemLevel`, `professions`, `skillLines`, `factions`,
   `honor`). `wow.wow.removeApi("C_Reputation.GetNumFactions")` makes one disappear (a bare name such as
   `"C_Reputation"` removes the whole namespace) and `wow.wow.breakApi(path)` makes it raise.
+- Instances: `state.inInstance` / `state.instanceType` drive `IsInInstance()`, and `state.instanceName` /
+  `state.instanceId` the 1st and 8th returns of `GetInstanceInfo()`.
+- `IsInGuild()` follows `state.guild` unless `state.inGuild` is set, e.g. `inGuild=True` with `guild=None`
+  to simulate guild info that is not loaded yet.
 - `Bindings.xml` and other XML files are skipped: the loader runs only `.lua` files.
 - `load_saved_variables` executes the file like the game client does. Use it only with fixtures from
   this repo: the server and the companion parse SavedVariables as literals and never execute them.

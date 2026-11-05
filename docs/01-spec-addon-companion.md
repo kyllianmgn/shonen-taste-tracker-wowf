@@ -114,6 +114,15 @@ Chaque événement : `{ id, type, at, data }`. `at` = `GetServerTime()`. `id` = 
 | `GUILD_CHANGE` | `PLAYER_GUILD_UPDATE` si le nom change | `from`, `to` |
 | `PROFESSION_TIER` | rang d'un métier franchit 75, 150, 225 ou 300 | `name`, `rank` |
 
+Détails d'implémentation (A-04) :
+
+- Les champs absents restent absents de `data` (ex. `GUILD_CHANGE` sans `from` à l'entrée dans une première guilde, sans `to` au départ).
+- `SESSION_START` / `SESSION_END` suivent `PLAYER_LOGIN` / `PLAYER_LOGOUT`, donc chaque `/reload` (synchronisation comprise) produit aussi une paire ; `SESSION_END.playedTotal` est la dernière valeur connue du snapshot.
+- `LEVEL_UP` en attente de `playedTotal` est gardé en mémoire : si l'interface est rechargée avant le `TIME_PLAYED_MSG` suivant, l'événement part sans `playedTotal`.
+- « Instance précédente » de `DUNGEON_ENTER` = le dernier `DUNGEON_ENTER` du journal du perso, ce qui tient aussi après un `/reload`.
+- `GUILD_CHANGE` et `PROFESSION_TIER` comparent à la guilde et aux rangs du snapshot sauvegardé (session précédente), sinon à ceux lus à la connexion. Tant que `IsInGuild()` est vrai mais que `GetGuildInfo()` ne renvoie rien (infos de guilde pas encore chargées), aucun changement n'est enregistré. Un métier vu pour la première fois sert de référence sans événement.
+- Un saut qui franchit plusieurs seuils d'un coup donne un seul `PROFESSION_TIER` avec le rang atteint.
+
 ## Addon : synchronisation et commandes
 
 Le jeu n'écrit les SavedVariables qu'à la déconnexion, à la sortie ou au rechargement de l'interface, et `ReloadUI()` n'est accepté qu'en réponse à un clic ou une touche. L'addon **propose** donc la synchronisation ; il ne l'impose jamais.
