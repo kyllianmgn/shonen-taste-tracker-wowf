@@ -275,6 +275,13 @@ Les valeurs masquées par `/confidentialite` ne sortent ni dans `/profil`, ni da
 
 Permissions posées par `/setup` sur le salon tableau : refus à @everyone d'Envoyer des messages, Envoyer dans les fils, Créer des fils publics et privés, Ajouter des réactions ; autorisation au bot de Voir le salon, Envoyer des messages, Intégrer des liens, Lire l'historique. Le bot a besoin de Gérer les salons sur le serveur pour poser ces permissions.
 
+Comportement de `/setup` (S-05) :
+
+- Les permissions sont posées à la création de `#tableau-forever`. Discord n'autorise un bot à y mettre que des permissions qu'il possède lui-même sur le serveur : il lui faut donc aussi celles de la liste ci-dessus (en général héritées d'@everyone). S'il en manque, `/setup` les nomme et ne crée rien.
+- Un salon existant (option `tableau`, ou salon déjà configuré) n'est jamais modifié : changer ses permissions demanderait Gérer les rôles, que le bot ne demande pas. `/setup` vérifie les refus faits à @everyone et liste en éphémère ce que l'admin doit corriger à la main ; il refuse le salon si le bot ne peut pas y publier.
+- `#logs-forever` est créé sans permission particulière ; `/setup` prévient si le bot ne peut pas y écrire.
+- Relancer `/setup` réutilise les salons (ids de `guild_config`, puis noms), édite le message du tableau en place, ou le republie s'il a disparu. Si le tableau change de salon, l'ancien message est supprimé.
+
 ## Salon tableau et salon logs
 
 ### Tableau
@@ -423,7 +430,7 @@ Battle.net ne fournit pas d'événements : le serveur compare deux relevés succ
 
 - `docker-compose.yml` : services `server` (image Node, port 3000 non exposé) et `db` (postgres:16, volume nommé), dans le réseau de Caddy.
 - Caddy : `ft.mondomaine.fr { reverse_proxy server:3000 }`.
-- Migrations lancées au démarrage du conteneur ; `GET /health` vérifie la base et la connexion Discord.
+- Migrations lancées au démarrage du conteneur ; `GET /health` vérifie la base et la connexion Discord : `{"status":"ok","database":"up","discord":"up"}`, ou 503 avec `"status":"error"` dès qu'un des deux est `down`.
 - Sauvegarde quotidienne de la base (`pg_dump`).
 
 ### Discord Developer Portal
