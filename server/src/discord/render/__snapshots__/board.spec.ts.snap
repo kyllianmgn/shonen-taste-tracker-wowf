@@ -1,0 +1,447 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`renderBoard reference renders 0 players 1`] = `
+[
+  {
+    "allowed_mentions": {
+      "parse": [],
+    },
+    "components": [
+      {
+        "components": [
+          {
+            "content": "WoW: Forever — 0 joueur suivi · 0 en ligne",
+            "type": 10,
+          },
+          {
+            "content": "Mis à jour <t:1793880000:R>",
+            "type": 10,
+          },
+        ],
+        "type": 17,
+      },
+    ],
+    "flags": 32768,
+  },
+]
+`;
+
+exports[`renderBoard reference renders 1 players 1`] = `
+[
+  {
+    "allowed_mentions": {
+      "parse": [],
+    },
+    "components": [
+      {
+        "components": [
+          {
+            "content": "WoW: Forever — 1 joueur suivi · 1 en ligne",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000000>
+   Davina Asaria · Guerrier 1 · ▱▱▱▱▱▱▱▱▱▱ 0 %
+   ↳ Elowen Ventbrume · Chaman 1 · ▱▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "Mis à jour <t:1793880000:R>",
+            "type": 10,
+          },
+        ],
+        "type": 17,
+      },
+    ],
+    "flags": 32768,
+  },
+]
+`;
+
+exports[`renderBoard reference renders 12 players 1`] = `
+[
+  {
+    "allowed_mentions": {
+      "parse": [],
+    },
+    "components": [
+      {
+        "components": [
+          {
+            "content": "WoW: Forever — 12 joueurs suivis · 3 en ligne",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000008>
+   Sylvi Ferrepied · Druide 56 · ▰▰▰▰▰▰▰▰▰▱ 9 % · Bois de la Pénombre",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000004>
+   Elowen Clairlune · Prêtre 28 · ▰▰▰▰▰▱▱▱▱▱ 54 % · Strangleronce
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000000>
+   Davina Asaria · Guerrier 1 · ▱▱▱▱▱▱▱▱▱▱ 0 %
+   ↳ Elowen Ventbrume · Chaman 1 · ▱▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000007> · vu <t:1793851200:R>
+   Odran Asaria · Démoniste 49 · ▰▰▰▰▰▰▰▰▱▱ 95 % · Les Tarides
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000006> · vu <t:1793854800:R>
+   Mirelle Valombre · Mage 42 · ▰▰▰▰▰▰▰▱▱▱ 82 % · Comté de l’Or
+   ↳ Brom Ferrepied · Chasseur 7 · ▰▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000005> · vu <t:1793858400:R>
+   Garrik Pierrenoire · Chaman 35 · ▰▰▰▰▰▰▱▱▱▱ 68 %",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000003>
+   Tharn Rochecoeur · Voleur 21 · ▰▰▰▰▱▱▱▱▱▱ 41 % · Bois de la Pénombre
+   ↳ Odran Pierrenoire · Druide 4 · ▰▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000011> · vu <t:1793836800:R>
+   Ilsa Clairlune · Chasseur 16 · ▰▰▰▱▱▱▱▱▱▱ 50 % · Comté de l’Or",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000002> · vu <t:1793869200:R>
+   Ilsa Ventbrume · Chasseur 14 · ▰▰▱▱▱▱▱▱▱▱ 27 % · Les Tarides",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000010>
+   Brom Rochecoeur · Paladin 9 · ▰▰▱▱▱▱▱▱▱▱ 37 %
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000001> · vu <t:1793872800:R>
+   Brom Ferrepied · Paladin 7 · ▰▱▱▱▱▱▱▱▱▱ 13 % · Comté de l’Or
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000009> · vu <t:1793844000:R>
+   Davina Ventbrume · Guerrier 2 · ▱▱▱▱▱▱▱▱▱▱ 23 % · Strangleronce
+   ↳ Elowen Clairlune · Chaman 10 · ▰▰▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "Mis à jour <t:1793880000:R>",
+            "type": 10,
+          },
+        ],
+        "type": 17,
+      },
+    ],
+    "flags": 32768,
+  },
+]
+`;
+
+exports[`renderBoard reference renders 45 players 1`] = `
+[
+  {
+    "allowed_mentions": {
+      "parse": [],
+    },
+    "components": [
+      {
+        "components": [
+          {
+            "content": "WoW: Forever — 45 joueurs suivis · 11 en ligne",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000008>
+   Sylvi Ferrepied · Druide 56 · ▰▰▰▰▰▰▰▰▰▱ 9 % · Bois de la Pénombre",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000016>
+   Odran Ventbrume · Démoniste 51 · ▰▰▰▰▰▰▰▰▰▱ 19 % · Comté de l’Or
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000032>
+   Garrik Clairlune · Chaman 41 · ▰▰▰▰▰▰▰▱▱▱ 38 % · Les Tarides",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000040>
+   Elowen Pierrenoire · Prêtre 36 · ▰▰▰▰▰▰▱▱▱▱ 48 %
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000004>
+   Elowen Clairlune · Prêtre 28 · ▰▰▰▰▰▱▱▱▱▱ 54 % · Strangleronce
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000012>
+   Tharn Pierrenoire · Voleur 23 · ▰▰▰▰▱▱▱▱▱▱ 64 % · Les Tarides
+   ↳ Odran Asaria · Druide 13 · ▰▰▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000020>
+   Ilsa Valombre · Chasseur 18 · ▰▰▰▱▱▱▱▱▱▱ 74 %",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000028>
+   Brom Asaria · Paladin 13 · ▰▰▱▱▱▱▱▱▱▱ 83 % · Bois de la Pénombre
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000036>
+   Davina Ferrepied · Guerrier 8 · ▰▱▱▱▱▱▱▱▱▱ 93 % · Comté de l’Or
+   ↳ Elowen Rochecoeur · Chaman 17 · ▰▰▰▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000044>
+   Sylvi Ventbrume · Druide 3 · ▰▱▱▱▱▱▱▱▱▱ 2 % · Strangleronce",
+            "type": 10,
+          },
+          {
+            "content": "🟢 <@100000000000000000>
+   Davina Asaria · Guerrier 1 · ▱▱▱▱▱▱▱▱▱▱ 0 %
+   ↳ Elowen Ventbrume · Chaman 1 · ▱▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000026> · vu <t:1793782800:R>
+   Sylvi Pierrenoire · Druide 60 · Comté de l’Or",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000017>
+   Sylvi Rochecoeur · Druide 58 · ▰▰▰▰▰▰▰▰▰▱ 32 % · Les Tarides",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000043> · vu <t:1793721600:R>
+   Odran Ferrepied · Démoniste 57 · ▰▰▰▰▰▰▰▰▰▱ 89 % · Bois de la Pénombre
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000034> · vu <t:1793754000:R>
+   Odran Valombre · Démoniste 55 · ▰▰▰▰▰▰▰▰▰▱ 65 % · Strangleronce
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000025> · vu <t:1793786400:R>
+   Odran Clairlune · Démoniste 53 · ▰▰▰▰▰▰▰▰▰▱ 42 %
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000042> · vu <t:1793725200:R>
+   Mirelle Asaria · Mage 50 · ▰▰▰▰▰▰▰▰▱▱ 75 % · Les Tarides
+   ↳ Brom Ventbrume · Chasseur 3 · ▰▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000007> · vu <t:1793851200:R>
+   Odran Asaria · Démoniste 49 · ▰▰▰▰▰▰▰▰▱▱ 95 % · Les Tarides
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000033> · vu <t:1793757600:R>
+   Mirelle Pierrenoire · Mage 48 · ▰▰▰▰▰▰▰▰▱▱ 52 % · Bois de la Pénombre
+   ↳ Brom Asaria · Chasseur 14 · ▰▰▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000024>
+   Mirelle Rochecoeur · Mage 46 · ▰▰▰▰▰▰▰▰▱▱ 28 % · Strangleronce
+   ↳ Brom Pierrenoire · Chasseur 5 · ▰▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000015> · vu <t:1793822400:R>
+   Mirelle Ferrepied · Mage 44 · ▰▰▰▰▰▰▰▱▱▱ 5 %
+   ↳ Brom Rochecoeur · Chasseur 16 · ▰▰▰▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000041> · vu <t:1793728800:R>
+   Garrik Valombre · Chaman 43 · ▰▰▰▰▰▰▰▱▱▱ 61 % · Comté de l’Or",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000006> · vu <t:1793854800:R>
+   Mirelle Valombre · Mage 42 · ▰▰▰▰▰▰▰▱▱▱ 82 % · Comté de l’Or
+   ↳ Brom Ferrepied · Chasseur 7 · ▰▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000023> · vu <t:1793793600:R>
+   Garrik Ventbrume · Chaman 39 · ▰▰▰▰▰▰▰▱▱▱ 15 % · Bois de la Pénombre",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000014> · vu <t:1793826000:R>
+   Garrik Asaria · Chaman 37 · ▰▰▰▰▰▰▱▱▱▱ 91 % · Strangleronce",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000005> · vu <t:1793858400:R>
+   Garrik Pierrenoire · Chaman 35 · ▰▰▰▰▰▰▱▱▱▱ 68 %",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000031>
+   Elowen Rochecoeur · Prêtre 34 · ▰▰▰▰▰▰▱▱▱▱ 24 % · Comté de l’Or
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000022> · vu <t:1793797200:R>
+   Elowen Ferrepied · Prêtre 32 · ▰▰▰▰▰▱▱▱▱▱ 1 % · Les Tarides
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000013> · vu <t:1793829600:R>
+   Elowen Valombre · Prêtre 30 · ▰▰▰▰▰▱▱▱▱▱ 78 % · Bois de la Pénombre
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000039> · vu <t:1793736000:R>
+   Tharn Clairlune · Voleur 29 · ▰▰▰▰▰▱▱▱▱▱ 34 % · Strangleronce
+   ↳ Odran Valombre · Druide 20 · ▰▰▰▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+        ],
+        "type": 17,
+      },
+    ],
+    "flags": 32768,
+  },
+  {
+    "allowed_mentions": {
+      "parse": [],
+    },
+    "components": [
+      {
+        "components": [
+          {
+            "content": "⚫ <@100000000000000030> · vu <t:1793768400:R>
+   Tharn Ventbrume · Voleur 27 · ▰▰▰▰▰▱▱▱▱▱ 11 %
+   ↳ Odran Clairlune · Druide 11 · ▰▰▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000021> · vu <t:1793800800:R>
+   Tharn Asaria · Voleur 25 · ▰▰▰▰▱▱▱▱▱▱ 87 % · Comté de l’Or
+   ↳ Odran Ventbrume · Druide 2 · ▱▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000038>
+   Ilsa Rochecoeur · Chasseur 22 · ▰▰▰▰▱▱▱▱▱▱ 20 % · Bois de la Pénombre",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000003>
+   Tharn Rochecoeur · Voleur 21 · ▰▰▰▰▱▱▱▱▱▱ 41 % · Bois de la Pénombre
+   ↳ Odran Pierrenoire · Druide 4 · ▰▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000029> · vu <t:1793772000:R>
+   Ilsa Ferrepied · Chasseur 20 · ▰▰▰▱▱▱▱▱▱▱ 97 % · Strangleronce",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000011> · vu <t:1793836800:R>
+   Ilsa Clairlune · Chasseur 16 · ▰▰▰▱▱▱▱▱▱▱ 50 % · Comté de l’Or",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000037> · vu <t:1793743200:R>
+   Brom Ventbrume · Paladin 15 · ▰▰▰▱▱▱▱▱▱▱ 6 % · Les Tarides
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000002> · vu <t:1793869200:R>
+   Ilsa Ventbrume · Chasseur 14 · ▰▰▱▱▱▱▱▱▱▱ 27 % · Les Tarides",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000019> · vu <t:1793808000:R>
+   Brom Pierrenoire · Paladin 11 · ▰▰▱▱▱▱▱▱▱▱ 60 % · Strangleronce
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "<@100000000000000010>
+   Brom Rochecoeur · Paladin 9 · ▰▰▱▱▱▱▱▱▱▱ 37 %
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000001> · vu <t:1793872800:R>
+   Brom Ferrepied · Paladin 7 · ▰▱▱▱▱▱▱▱▱▱ 13 % · Comté de l’Or
+   ↳ non synchronisé",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000027> · vu <t:1793779200:R>
+   Davina Valombre · Guerrier 6 · ▰▱▱▱▱▱▱▱▱▱ 69 % · Les Tarides
+   ↳ Elowen Ferrepied · Chaman 8 · ▰▱▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000018> · vu <t:1793811600:R>
+   Davina Clairlune · Guerrier 4 · ▰▱▱▱▱▱▱▱▱▱ 46 % · Bois de la Pénombre
+   ↳ Elowen Valombre · Chaman 19 · ▰▰▰▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000009> · vu <t:1793844000:R>
+   Davina Ventbrume · Guerrier 2 · ▱▱▱▱▱▱▱▱▱▱ 23 % · Strangleronce
+   ↳ Elowen Clairlune · Chaman 10 · ▰▰▱▱▱▱▱▱▱▱ 50 %",
+            "type": 10,
+          },
+          {
+            "content": "⚫ <@100000000000000035> · vu <t:1793750400:R>
+   Sylvi Asaria · Druide 1 · ▱▱▱▱▱▱▱▱▱▱ 79 %",
+            "type": 10,
+          },
+          {
+            "content": "Mis à jour <t:1793880000:R>",
+            "type": 10,
+          },
+        ],
+        "type": 17,
+      },
+    ],
+    "flags": 32768,
+  },
+]
+`;
