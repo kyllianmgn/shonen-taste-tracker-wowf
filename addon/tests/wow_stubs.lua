@@ -27,6 +27,16 @@ local function defaultState()
     money = 384512,
     zone = "Duskwood",
     subZone = "Darkshire",
+    mapId = 1431,
+    className = "Prêtre",
+    classFile = "PRIEST",
+    classId = 5,
+    raceName = "Troll",
+    raceFile = "Troll",
+    raceId = 8,
+    sex = 3,
+    faction = "Horde",
+    factionName = "Horde",
     guild = nil,
     guildRank = nil,
     guildRankIndex = nil,
@@ -47,6 +57,7 @@ WowTest.state = defaultState()
 WowTest.frames = {}
 WowTest.timers = {}
 WowTest.reloadCalls = {}
+WowTest.playedRequests = 0
 WowTest.hardware = false
 
 -- ---------------------------------------------------------------------------
@@ -87,6 +98,31 @@ function GetXPExhaustion() return WowTest.state.rested end
 function GetMoney() return WowTest.state.money end
 function GetRealZoneText() return WowTest.state.zone end
 function GetSubZoneText() return WowTest.state.subZone end
+
+function UnitClass(unit)
+  if unit ~= "player" then return nil end
+  local s = WowTest.state
+  return s.className, s.classFile, s.classId
+end
+
+function UnitRace(unit)
+  if unit ~= "player" then return nil end
+  local s = WowTest.state
+  return s.raceName, s.raceFile, s.raceId
+end
+
+function UnitSex(unit) if unit == "player" then return WowTest.state.sex end return nil end
+
+function UnitFactionGroup(unit)
+  if unit ~= "player" then return nil end
+  return WowTest.state.faction, WowTest.state.factionName
+end
+
+C_Map = {}
+function C_Map.GetBestMapForUnit(unit)
+  if unit ~= "player" then return nil end
+  return WowTest.state.mapId
+end
 
 function GetGuildInfo(unit)
   if unit ~= "player" or not WowTest.state.guild then return nil end
@@ -271,8 +307,10 @@ function ReloadUI()
   table.insert(WowTest.reloadCalls, { hardware = WowTest.hardware })
 end
 
--- Fires TIME_PLAYED_MSG synchronously with the values in WowTest.state.
+-- Spy: counts calls in WowTest.playedRequests, then fires TIME_PLAYED_MSG
+-- synchronously with the values in WowTest.state.
 function RequestTimePlayed()
+  WowTest.playedRequests = WowTest.playedRequests + 1
   WowTest.fire("TIME_PLAYED_MSG", WowTest.state.playedTotal, WowTest.state.playedLevel)
 end
 
