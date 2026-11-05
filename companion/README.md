@@ -42,6 +42,19 @@ mêmes erreurs (`NonLiteralExpression`, `SyntaxError`, `SourceTooLarge` au-delà
 ou `{}` selon `contract/schemas/sync.request.json`. `ForeverTrackerDB = nil` renvoie `null` :
 rien à envoyer. Les tests lisent directement `contract/fixtures/savedvariables/`.
 
+## Détection du jeu (`process/`)
+
+`GameDetector` interroge `ProcessLister` toutes les 5 s et émet `GameStarted` / `GameStopped`
+seulement quand l'état change. Le jeu est « lancé » si `Wow.exe` ou `Wow-arm64.exe` tourne sous le
+dossier `_forever_` (casse et sens des barres ignorés ; `_retail_`, `_forever_old` ou un chemin avec
+`..` ne comptent pas). Au démarrage, jeu déjà lancé → `GameStarted` ; jeu arrêté → rien. Une liste
+de processus en échec garde le dernier état. Tout autre `.exe` vu sous `_forever_` est journalisé
+une fois (nom seul) pour confirmer le vrai nom de l'exécutable sur une install réelle.
+
+`Win32ProcessLister` passe par `dart:ffi` (package `ffi`) : `K32EnumProcesses`, puis
+`OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` + `QueryFullProcessImageNameW` ; aucun droit
+admin, aucune console lancée, les processus protégés sont ignorés.
+
 ## Fichiers locaux
 
 Dans `%APPDATA%\ForeverTrackerSync\` :
