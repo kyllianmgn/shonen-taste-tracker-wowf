@@ -119,7 +119,18 @@ class WowGame:
     def set_state(self, **values: Any) -> None:
         state = self.wow.state
         for key, value in values.items():
-            state[key] = value
+            state[key] = self.to_lua(value)
+
+    def to_lua(self, value: Any) -> Any:
+        """Convert Python dicts and lists recursively into Lua tables."""
+        if isinstance(value, dict):
+            table = self.lua.table()
+            for key, item in value.items():
+                table[key] = self.to_lua(item)
+            return table
+        if isinstance(value, list):
+            return self.lua.table(*(self.to_lua(item) for item in value))
+        return value
 
     # -- reading ----------------------------------------------------------
 

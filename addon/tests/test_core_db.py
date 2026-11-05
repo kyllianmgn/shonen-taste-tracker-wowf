@@ -109,9 +109,17 @@ def test_player_login_creates_character_entry_indexed_by_guid(wow):
     characters = wow.db()["characters"]
     assert list(characters) == [GUID]
     entry = characters[GUID]
-    assert entry["key"] == {"guid": GUID}
-    assert entry["snapshot"] == {}
+    assert entry["key"]["guid"] == GUID  # the rest of key and snapshot: test_collect.py
     assert entry["events"] == {}  # empty Lua table
+
+
+def test_get_character_creates_an_empty_entry(wow):
+    wow.load_addon()
+    get_character = wow.lua.eval("function(ns, guid) return ns.GetCharacter(guid) end")
+    get_character(wow.ns, "Player-1-2")
+    assert wow.db()["characters"] == {
+        "Player-1-2": {"key": {"guid": "Player-1-2"}, "snapshot": {}, "events": {}}
+    }
 
 
 def test_player_login_uses_the_current_guid(wow):
@@ -130,10 +138,16 @@ def test_player_login_after_nil_db_creates_entry(wow):
 
 def test_player_login_keeps_existing_character_entry(wow):
     wow.load_saved_variables(SAVED_VARIABLES_DIR / "ForeverTracker.sample.lua")
-    before = wow.db()["characters"]
+    before = wow.db()["characters"][GUID]
+    wow.lua.execute("originalEntry = ForeverTrackerDB.characters['Player-4242-0A1B2C3D']")
     wow.load_addon()
     wow.fire("PLAYER_LOGIN")
-    assert wow.db()["characters"] == before
+    # Login refreshes key and snapshot (Collect.lua) but keeps the same entry,
+    # its journal and the saved death counter.
+    assert wow.lua.eval("ForeverTrackerDB.characters['Player-4242-0A1B2C3D'] == originalEntry")
+    after = wow.db()["characters"][GUID]
+    assert after["events"] == before["events"]
+    assert after["snapshot"]["deaths"] == before["snapshot"]["deaths"]
 
 
 def test_player_login_adds_new_character_next_to_existing_ones(wow):
