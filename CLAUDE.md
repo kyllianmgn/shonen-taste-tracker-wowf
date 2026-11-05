@@ -12,13 +12,16 @@ Discord bot + WoW: Forever addon + Windows companion app that track players' cha
 If the spec is ambiguous or contradicts the code, STOP and ask. Do not guess.
 
 ## Workflow
-- One task id (S-xx server, A-xx addon, C-xx companion) = one branch `task/<id>-<slug>` = one PR.
+- One task id (S-xx server, A-xx addon, C-xx companion) = one branch `task/<id>-<slug>`.
+- No pull requests: do not run `gh pr create` or write a PR description, even if a task prompt
+  or docs/03-04 asks for one. Work ends with the commits on the task branch; ask before merging
+  into main.
 - Never commit to main. Conventional Commits (feat:, fix:, test:, chore:, docs:).
 - TDD: write the failing test first, make it pass, refactor. All tests green before asking for review.
 - Ask before any decision not covered by docs: new dependency, DB schema change, contract change,
   new Discord permission, new file in the player's WoW folder.
-- Contract change = schemas + fixtures + server + companion in the same PR; bump `schema` if breaking.
-- Code, comments, commits, PR text in English. User-facing strings in French
+- Contract change = schemas + fixtures + server + companion in the same branch; bump `schema` if breaking.
+- Code, comments, commits in English. User-facing strings in French
   (addon also ships enUS).
 
 ## Hard rules
@@ -41,5 +44,5 @@ If the spec is ambiguous or contradicts the code, STOP and ask. Do not guess.
 - Replay a payload: `node tools/fake-client --fixture contract/fixtures/sync.valid.json`
 
 ## Definition of done
-- Tests green, lint clean, the task's acceptance criteria ticked in the PR description,
+- Tests green, lint clean, the task's acceptance criteria checked off in the final message,
   docs updated when behavior changes, no TODO left without a linked task id.
