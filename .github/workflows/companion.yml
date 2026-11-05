@@ -1,0 +1,21 @@
+# Placeholder CI for the companion package: lint and tests are added by the package's tasks.
+name: companion
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "companion/**"
+      - "contract/**"
+      - ".github/workflows/companion.yml"
+  pull_request:
+    paths:
+      - "companion/**"
+      - "contract/**"
+      - ".github/workflows/companion.yml"
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No companion checks yet"

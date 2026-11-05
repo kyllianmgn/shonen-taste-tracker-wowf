@@ -1,0 +1,21 @@
+# Placeholder CI for the addon package: lint and tests are added by the package's tasks.
+name: addon
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "addon/**"
+      - "contract/**"
+      - ".github/workflows/addon.yml"
+  pull_request:
+    paths:
+      - "addon/**"
+      - "contract/**"
+      - ".github/workflows/addon.yml"
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No addon checks yet"
