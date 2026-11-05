@@ -26,23 +26,32 @@ void main() {
     ]);
   });
 
-  test('ignores other addons, backups, accounts without the file and per-character folders',
-      () async {
-    tree.writeFile(tree.savedVariables('A'), 'x');
-    tree.writeFile(tree.savedVariables('A', file: 'ForeverTracker.lua.bak'), 'x');
-    tree.writeFile(tree.savedVariables('A', file: 'OtherAddon.lua'), 'x');
-    tree.writeFile(tree.savedVariables('B', file: 'OtherAddon.lua'), 'x');
-    Directory(WowTree.p(tree.wtf, 'Account', 'C')).createSync(recursive: true);
-    tree.writeFile(
-      WowTree.p(tree.wtf, 'Account', 'A', 'Realm', 'Char') +
-          '${Platform.pathSeparator}SavedVariables${Platform.pathSeparator}ForeverTracker.lua',
-      'x',
-    );
-    // A folder named like the file is not a file.
-    Directory(tree.savedVariables('D')).createSync(recursive: true);
+  test(
+    'ignores other addons, backups, accounts without the file and per-character folders',
+    () async {
+      tree.writeFile(tree.savedVariables('A'), 'x');
+      tree.writeFile(tree.savedVariables('A', file: 'ForeverTracker.lua.bak'), 'x');
+      tree.writeFile(tree.savedVariables('A', file: 'OtherAddon.lua'), 'x');
+      tree.writeFile(tree.savedVariables('B', file: 'OtherAddon.lua'), 'x');
+      Directory(WowTree.p(tree.wtf, 'Account', 'C')).createSync(recursive: true);
+      tree.writeFile(
+        WowTree.p(
+          tree.wtf,
+          'Account',
+          'A',
+          'Realm',
+          'Char',
+          'SavedVariables',
+          'ForeverTracker.lua',
+        ),
+        'x',
+      );
+      // A folder named like the file is not a file.
+      Directory(tree.savedVariables('D')).createSync(recursive: true);
 
-    expect(await discoverSavedVariables(tree.forever), [tree.savedVariables('A')]);
-  });
+      expect(await discoverSavedVariables(tree.forever), [tree.savedVariables('A')]);
+    },
+  );
 
   test('matches folder and file names case-insensitively, like Windows', () async {
     final path = WowTree.p(tree.wtf, 'Account', 'A', 'savedvariables', 'forevertracker.lua');
@@ -57,10 +66,7 @@ void main() {
 
   test('isSavedVariablesFile recognises only the discovered pattern', () {
     expect(isSavedVariablesFile(tree.forever, tree.savedVariables('A')), isTrue);
-    expect(
-      isSavedVariablesFile(tree.forever, tree.savedVariables('A').toUpperCase()),
-      isTrue,
-    );
+    expect(isSavedVariablesFile(tree.forever, tree.savedVariables('A').toUpperCase()), isTrue);
     expect(
       isSavedVariablesFile(tree.forever, tree.savedVariables('A', file: 'ForeverTracker.lua.bak')),
       isFalse,
@@ -68,8 +74,7 @@ void main() {
     expect(
       isSavedVariablesFile(
         tree.forever,
-        WowTree.p(tree.wtf, 'Account', 'A', 'R', 'C', 'SavedVariables') +
-            '${Platform.pathSeparator}ForeverTracker.lua',
+        WowTree.p(tree.wtf, 'Account', 'A', 'R', 'C', 'SavedVariables', 'ForeverTracker.lua'),
       ),
       isFalse,
     );

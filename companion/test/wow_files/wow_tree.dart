@@ -4,8 +4,7 @@ import 'dart:io';
 class WowTree {
   WowTree._(this.root);
 
-  factory WowTree.create() =>
-      WowTree._(Directory.systemTemp.createTempSync('ftsync_wow_').path);
+  factory WowTree.create() => WowTree._(Directory.systemTemp.createTempSync('ftsync_wow_').path);
 
   /// Plays the role of the "World of Warcraft" folder.
   final String root;
@@ -32,6 +31,13 @@ class WowTree {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   }
 
-  static String p(String first, [String? a, String? b, String? c, String? d, String? e]) =>
-      [first, a, b, c, d, e].whereType<String>().join(Platform.pathSeparator);
+  static String p(
+    String first, [
+    String? a,
+    String? b,
+    String? c,
+    String? d,
+    String? e,
+    String? f,
+  ]) => [first, a, b, c, d, e, f].whereType<String>().join(Platform.pathSeparator);
 }

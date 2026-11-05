@@ -42,7 +42,9 @@ void main() {
     });
 
     test('returns null when no candidate is valid, so the player must choose', () async {
-      final locator = ForeverFolderLocator(candidates: [tree.forever, WowTree.p(tree.root, 'nope')]);
+      final locator = ForeverFolderLocator(
+        candidates: [tree.forever, WowTree.p(tree.root, 'nope')],
+      );
       expect(await locator.detect(), isNull);
     });
   });

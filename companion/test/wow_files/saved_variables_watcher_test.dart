@@ -74,14 +74,15 @@ void main() {
         final file = File(tree.savedVariables('A'));
         file.parent.createSync(recursive: true);
 
+        // Pauses shorter than stableFor: the parts must be seen as one write.
         final sink = file.openSync(mode: FileMode.write);
         for (var i = 0; i < 4; i++) {
+          if (i > 0) await Future<void>.delayed(const Duration(milliseconds: 150));
           sink.writeStringSync('ForeverTrackerDB = { part = $i }\n');
           sink.flushSync();
-          await Future<void>.delayed(const Duration(milliseconds: 150));
         }
-        sink.closeSync();
         final lastWrite = DateTime.now();
+        sink.closeSync();
 
         await Future<void>.delayed(settle);
 
