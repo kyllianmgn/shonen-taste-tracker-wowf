@@ -12,8 +12,9 @@ void main() {
       m.singleWhere((e) => e.action == a);
 
   test('lists status, then the actions required by the spec', () {
-    final s = paired.apply(SendSucceeded(DateTime(2026, 11, 5, 9, 7),
-        isSync: true, character: 'Jaina'));
+    final s = paired.apply(
+      SendSucceeded(DateTime(2026, 11, 5, 9, 7), isSync: true, character: 'Jaina'),
+    );
     final menu = buildTrayMenu(s, startWithWindows: true);
     expect(labels(menu), [
       'Statut : Jeu fermé',
@@ -33,8 +34,11 @@ void main() {
 
   test('empty status before any sync', () {
     final menu = buildTrayMenu(paired, startWithWindows: true);
-    expect(labels(menu).sublist(1, 4),
-        ['Perso : aucun', 'Dernière synchro : jamais', 'Serveur : en attente']);
+    expect(labels(menu).sublist(1, 4), [
+      'Perso : aucun',
+      'Dernière synchro : jamais',
+      'Serveur : en attente',
+    ]);
   });
 
   test('not paired: offers pairing and disables sync', () {
@@ -51,10 +55,20 @@ void main() {
   });
 
   test('"Démarrer avec Windows" reflects the setting', () {
-    expect(byAction(buildTrayMenu(paired, startWithWindows: true),
-            TrayAction.toggleStartWithWindows).checked, isTrue);
-    expect(byAction(buildTrayMenu(paired, startWithWindows: false),
-            TrayAction.toggleStartWithWindows).checked, isFalse);
+    expect(
+      byAction(
+        buildTrayMenu(paired, startWithWindows: true),
+        TrayAction.toggleStartWithWindows,
+      ).checked,
+      isTrue,
+    );
+    expect(
+      byAction(
+        buildTrayMenu(paired, startWithWindows: false),
+        TrayAction.toggleStartWithWindows,
+      ).checked,
+      isFalse,
+    );
   });
 
   test('server line follows the server status', () {

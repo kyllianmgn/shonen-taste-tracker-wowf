@@ -43,13 +43,17 @@ class RotatingFileSink {
     _size = 0;
   }
 
-  File _file(int index) => File('${dir.path}${Platform.pathSeparator}'
-      '$baseName${index == 0 ? '' : '.$index'}.log');
+  File _file(int index) => File(
+    '${dir.path}${Platform.pathSeparator}'
+    '$baseName${index == 0 ? '' : '.$index'}.log',
+  );
 }
 
 String formatLogRecord(LogRecord r) {
-  final b = StringBuffer('${r.time.toIso8601String()} ${r.level.name} '
-      '${r.loggerName}: ${r.message}');
+  final b = StringBuffer(
+    '${r.time.toIso8601String()} ${r.level.name} '
+    '${r.loggerName}: ${r.message}',
+  );
   if (r.error != null) b.write(' | ${r.error}');
   if (r.stackTrace != null) b.write('\n${r.stackTrace}');
   return b.toString();

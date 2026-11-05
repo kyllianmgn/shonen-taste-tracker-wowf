@@ -84,21 +84,21 @@ class TrayState {
   final String? lastCharacter;
 
   TrayState apply(TrayEvent event) => switch (event) {
-        GameStarted() => _copy(gameRunning: true),
-        GameStopped() => _copy(gameRunning: false),
-        SendSucceeded(:final at, :final isSync, :final character) => _copy(
-            lastSendFailed: false,
-            unknownSchema: false,
-            anySendSucceeded: true,
-            lastSyncAt: isSync ? at : lastSyncAt,
-            lastCharacter: character ?? lastCharacter,
-          ),
-        SendFailed() => _copy(lastSendFailed: true),
-        UnknownSchema() => _copy(unknownSchema: true),
-        Unauthorized() => _copy(paired: false, tokenRevoked: true),
-        Paired() => _copy(paired: true, tokenRevoked: false, lastSendFailed: false),
-        Unpaired() => _copy(paired: false, tokenRevoked: false),
-      };
+    GameStarted() => _copy(gameRunning: true),
+    GameStopped() => _copy(gameRunning: false),
+    SendSucceeded(:final at, :final isSync, :final character) => _copy(
+      lastSendFailed: false,
+      unknownSchema: false,
+      anySendSucceeded: true,
+      lastSyncAt: isSync ? at : lastSyncAt,
+      lastCharacter: character ?? lastCharacter,
+    ),
+    SendFailed() => _copy(lastSendFailed: true),
+    UnknownSchema() => _copy(unknownSchema: true),
+    Unauthorized() => _copy(paired: false, tokenRevoked: true),
+    Paired() => _copy(paired: true, tokenRevoked: false, lastSendFailed: false),
+    Unpaired() => _copy(paired: false, tokenRevoked: false),
+  };
 
   TrayIssue? get issue {
     if (tokenRevoked) return TrayIssue.tokenRevoked;
@@ -122,12 +122,12 @@ class TrayState {
 
   /// One-line French summary, used for the tooltip and the menu status line.
   String get summary => switch (issue) {
-        TrayIssue.tokenRevoked => "Jeton révoqué : réappaire l'appli avec /lier appli",
-        TrayIssue.notPaired => "Non appairée : tape /lier appli sur Discord",
-        TrayIssue.unknownSchema => "Format de fichier inconnu : mets à jour l'appli",
-        TrayIssue.serverUnreachable => 'Serveur injoignable, nouvel essai automatique',
-        null => gameRunning ? 'Jeu détecté, synchro OK' : 'Jeu fermé',
-      };
+    TrayIssue.tokenRevoked => "Jeton révoqué : réappaire l'appli avec /lier appli",
+    TrayIssue.notPaired => "Non appairée : tape /lier appli sur Discord",
+    TrayIssue.unknownSchema => "Format de fichier inconnu : mets à jour l'appli",
+    TrayIssue.serverUnreachable => 'Serveur injoignable, nouvel essai automatique',
+    null => gameRunning ? 'Jeu détecté, synchro OK' : 'Jeu fermé',
+  };
 
   String get tooltip => 'ForeverTracker Sync — $summary';
 
@@ -140,15 +140,14 @@ class TrayState {
     bool? anySendSucceeded,
     DateTime? lastSyncAt,
     String? lastCharacter,
-  }) =>
-      TrayState(
-        paired: paired ?? this.paired,
-        gameRunning: gameRunning ?? this.gameRunning,
-        tokenRevoked: tokenRevoked ?? this.tokenRevoked,
-        unknownSchema: unknownSchema ?? this.unknownSchema,
-        lastSendFailed: lastSendFailed ?? this.lastSendFailed,
-        anySendSucceeded: anySendSucceeded ?? this.anySendSucceeded,
-        lastSyncAt: lastSyncAt ?? this.lastSyncAt,
-        lastCharacter: lastCharacter ?? this.lastCharacter,
-      );
+  }) => TrayState(
+    paired: paired ?? this.paired,
+    gameRunning: gameRunning ?? this.gameRunning,
+    tokenRevoked: tokenRevoked ?? this.tokenRevoked,
+    unknownSchema: unknownSchema ?? this.unknownSchema,
+    lastSendFailed: lastSendFailed ?? this.lastSendFailed,
+    anySendSucceeded: anySendSucceeded ?? this.anySendSucceeded,
+    lastSyncAt: lastSyncAt ?? this.lastSyncAt,
+    lastCharacter: lastCharacter ?? this.lastCharacter,
+  );
 }

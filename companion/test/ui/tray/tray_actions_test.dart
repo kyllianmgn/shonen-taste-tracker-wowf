@@ -10,20 +10,20 @@ import 'package:forevertracker_sync/ui/tray/tray_actions.dart';
 import 'package:forevertracker_sync/ui/tray/tray_menu.dart';
 import 'package:forevertracker_sync/ui/tray/tray_state.dart';
 
-class _Calls {
+class Calls {
   final list = <String>[];
 }
 
 class FakeSync implements SyncService {
   FakeSync(this.c);
-  final _Calls c;
+  final Calls c;
   @override
   Future<void> syncNow() async => c.list.add('syncNow');
 }
 
 class FakePairing implements PairingService {
   FakePairing(this.c);
-  final _Calls c;
+  final Calls c;
   @override
   Future<bool> isPaired() async => false;
   @override
@@ -38,7 +38,7 @@ class FakePairing implements PairingService {
 
 class FakeLauncher implements StartupLauncher {
   FakeLauncher(this.c);
-  final _Calls c;
+  final Calls c;
   @override
   Future<void> setEnabled(bool enabled) async => c.list.add('startup:$enabled');
 }
@@ -46,14 +46,14 @@ class FakeLauncher implements StartupLauncher {
 void main() {
   late Directory tmp;
   late SettingsStore store;
-  late _Calls calls;
+  late Calls calls;
   late List<TrayEvent> events;
   late TrayActions actions;
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('ftsync_actions_');
     store = SettingsStore(File('${tmp.path}${Platform.pathSeparator}settings.json'));
-    calls = _Calls();
+    calls = Calls();
     events = [];
     actions = TrayActions(
       sync: FakeSync(calls),
@@ -87,8 +87,7 @@ void main() {
     expect(events.single, isA<Unpaired>());
   });
 
-  test('toggling start with Windows updates the launcher and the settings',
-      () async {
+  test('toggling start with Windows updates the launcher and the settings', () async {
     await store.save(const AppSettings(gameFolder: 'x'));
     final after = await actions.handle(TrayAction.toggleStartWithWindows);
     expect(calls.list, ['startup:false']);

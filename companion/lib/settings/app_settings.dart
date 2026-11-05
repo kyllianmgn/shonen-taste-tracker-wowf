@@ -21,11 +21,7 @@ class AppSettings {
   /// Whether the first-run window (C-05) has been completed.
   final bool firstRunCompleted;
 
-  AppSettings copyWith({
-    String? gameFolder,
-    bool? startWithWindows,
-    bool? firstRunCompleted,
-  }) =>
+  AppSettings copyWith({String? gameFolder, bool? startWithWindows, bool? firstRunCompleted}) =>
       AppSettings(
         gameFolder: gameFolder ?? this.gameFolder,
         startWithWindows: startWithWindows ?? this.startWithWindows,
@@ -33,11 +29,11 @@ class AppSettings {
       );
 
   Map<String, Object?> toJson() => {
-        'version': currentVersion,
-        'gameFolder': gameFolder,
-        'startWithWindows': startWithWindows,
-        'firstRunCompleted': firstRunCompleted,
-      };
+    'version': currentVersion,
+    'gameFolder': gameFolder,
+    'startWithWindows': startWithWindows,
+    'firstRunCompleted': firstRunCompleted,
+  };
 
   /// Lenient: a missing or mistyped key keeps its default, unknown keys are
   /// ignored, so a hand-edited file never prevents the app from starting.
@@ -48,12 +44,8 @@ class AppSettings {
     final firstRunCompleted = json['firstRunCompleted'];
     return AppSettings(
       gameFolder: gameFolder is String ? gameFolder : defaults.gameFolder,
-      startWithWindows: startWithWindows is bool
-          ? startWithWindows
-          : defaults.startWithWindows,
-      firstRunCompleted: firstRunCompleted is bool
-          ? firstRunCompleted
-          : defaults.firstRunCompleted,
+      startWithWindows: startWithWindows is bool ? startWithWindows : defaults.startWithWindows,
+      firstRunCompleted: firstRunCompleted is bool ? firstRunCompleted : defaults.firstRunCompleted,
     );
   }
 
@@ -68,7 +60,8 @@ class AppSettings {
   int get hashCode => Object.hash(gameFolder, startWithWindows, firstRunCompleted);
 
   @override
-  String toString() => 'AppSettings(gameFolder: $gameFolder, '
+  String toString() =>
+      'AppSettings(gameFolder: $gameFolder, '
       'startWithWindows: $startWithWindows, '
       'firstRunCompleted: $firstRunCompleted)';
 }

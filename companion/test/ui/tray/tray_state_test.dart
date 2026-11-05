@@ -5,8 +5,7 @@ void main() {
   final t0 = DateTime(2026, 11, 5, 14, 32);
   const paired = TrayState(paired: true);
 
-  TrayState run(TrayState s, List<TrayEvent> events) =>
-      events.fold(s, (acc, e) => acc.apply(e));
+  TrayState run(TrayState s, List<TrayEvent> events) => events.fold(s, (acc, e) => acc.apply(e));
 
   group('icon colour', () {
     test('initial state, not paired: orange', () {
@@ -34,8 +33,7 @@ void main() {
     });
 
     test('failed send: orange, even with the game closed', () {
-      expect(run(paired, [const GameStarted(), const SendFailed()]).color,
-          TrayColor.orange);
+      expect(run(paired, [const GameStarted(), const SendFailed()]).color, TrayColor.orange);
       expect(run(paired, [const SendFailed()]).color, TrayColor.orange);
       expect(run(paired, [const SendFailed()]).issue, TrayIssue.serverUnreachable);
     });
@@ -118,7 +116,9 @@ void main() {
       expect(s.tooltip.length, lessThanOrEqualTo(127));
     }
     expect(paired.apply(const UnknownSchema()).tooltip, contains("mets à jour l'appli"));
-    expect(paired.apply(const Unauthorized()).tooltip,
-        contains("réappaire l'appli avec /lier appli"));
+    expect(
+      paired.apply(const Unauthorized()).tooltip,
+      contains("réappaire l'appli avec /lier appli"),
+    );
   });
 }

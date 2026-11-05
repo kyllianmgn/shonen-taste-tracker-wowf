@@ -13,8 +13,10 @@ void main() {
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('ftsync_settings_');
-    file = File('${tmp.path}${Platform.pathSeparator}sub'
-        '${Platform.pathSeparator}settings.json');
+    file = File(
+      '${tmp.path}${Platform.pathSeparator}sub'
+      '${Platform.pathSeparator}settings.json',
+    );
     store = SettingsStore(file);
   });
 
@@ -24,8 +26,10 @@ void main() {
     test('resolves everything under %APPDATA%\\ForeverTrackerSync', () {
       final paths = AppPaths.fromEnvironment({'APPDATA': r'C:\Users\x\AppData\Roaming'});
       expect(paths.dataDir.path, r'C:\Users\x\AppData\Roaming\ForeverTrackerSync');
-      expect(paths.settingsFile.path,
-          r'C:\Users\x\AppData\Roaming\ForeverTrackerSync\settings.json');
+      expect(
+        paths.settingsFile.path,
+        r'C:\Users\x\AppData\Roaming\ForeverTrackerSync\settings.json',
+      );
       expect(paths.logsDir.path, paths.dataDir.path);
     });
 
@@ -55,15 +59,16 @@ void main() {
       expect(await store.load(), const AppSettings());
     });
 
-    test('keeps defaults for missing or mistyped keys and ignores unknown keys',
-        () async {
+    test('keeps defaults for missing or mistyped keys and ignores unknown keys', () async {
       file.parent.createSync(recursive: true);
-      file.writeAsStringSync(jsonEncode({
-        'version': 1,
-        'gameFolder': r'C:\Games\World of Warcraft\_forever_',
-        'startWithWindows': 'yes',
-        'somethingElse': 42,
-      }));
+      file.writeAsStringSync(
+        jsonEncode({
+          'version': 1,
+          'gameFolder': r'C:\Games\World of Warcraft\_forever_',
+          'startWithWindows': 'yes',
+          'somethingElse': 42,
+        }),
+      );
       final s = await store.load();
       expect(s.gameFolder, r'C:\Games\World of Warcraft\_forever_');
       expect(s.startWithWindows, isTrue);
@@ -92,13 +97,11 @@ void main() {
       expect(json.containsKey('gameFolder'), isTrue);
     });
 
-    test('overwrites the previous file and leaves no temp file behind',
-        () async {
+    test('overwrites the previous file and leaves no temp file behind', () async {
       await store.save(const AppSettings(startWithWindows: false));
       await store.save(const AppSettings(firstRunCompleted: true));
       expect((await store.load()).startWithWindows, isTrue);
-      expect(file.parent.listSync().map((e) => e.uri.pathSegments.last),
-          ['settings.json']);
+      expect(file.parent.listSync().map((e) => e.uri.pathSegments.last), ['settings.json']);
     });
   });
 

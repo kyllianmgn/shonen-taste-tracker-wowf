@@ -11,16 +11,17 @@ void main() {
   tearDown(() => tmp.deleteSync(recursive: true));
 
   File f(String name) => File('${tmp.path}${Platform.pathSeparator}$name');
-  List<String> names() =>
-      tmp.listSync().map((e) => e.uri.pathSegments.last).toList()..sort();
+  List<String> names() => tmp.listSync().map((e) => e.uri.pathSegments.last).toList()..sort();
 
   test('appends lines to the current file, creating the folder', () {
     final dir = Directory('${tmp.path}${Platform.pathSeparator}sub');
     final sink = RotatingFileSink(dir, maxBytes: 1000, maxFiles: 3);
     sink.writeLine('one');
     sink.writeLine('two');
-    expect(File('${dir.path}${Platform.pathSeparator}forevertracker-sync.log')
-        .readAsStringSync(), 'one\ntwo\n');
+    expect(
+      File('${dir.path}${Platform.pathSeparator}forevertracker-sync.log').readAsStringSync(),
+      'one\ntwo\n',
+    );
   });
 
   test('rotates when the next line would exceed maxBytes', () {
