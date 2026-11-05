@@ -22,7 +22,7 @@ const byName = (name: string): RESTPostAPIChatInputApplicationCommandsJSONBody =
   return def;
 };
 const sub = (command: string, name: string): Option => {
-  const option = (byName(command).options as Option[] | undefined)?.find((o) => o.name === name);
+  const option = (byName(command).options)?.find((o) => o.name === name);
   if (!option) throw new Error(`no subcommand ${command} ${name}`);
   expect(option.type).toBe(T.Subcommand);
   return option;
@@ -104,7 +104,7 @@ describe('slash command definitions (docs/02 « Commandes Discord »)', () => {
       });
     for (const def of COMMAND_DEFINITIONS) {
       check(def.name, def.description);
-      walk(def.options as Option[] | undefined);
+      walk(def.options);
     }
   });
 
