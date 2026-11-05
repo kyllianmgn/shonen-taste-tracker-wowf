@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contract/heartbeat.response.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["heartbeatIntervalSec", "serverTime"],
+  "properties": {
+    "heartbeatIntervalSec": { "type": "integer", "minimum": 1 },
+    "serverTime": { "type": "integer", "minimum": 0 }
+  }
+}

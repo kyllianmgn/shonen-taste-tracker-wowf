@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contract/share-code.payload.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sentAt",
+    "schema",
+    "addonVersion",
+    "character"
+  ],
+  "properties": {
+    "sentAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "schema": {
+      "const": 1
+    },
+    "addonVersion": {
+      "type": "string",
+      "maxLength": 20
+    },
+    "character": {
+      "$ref": "#/$defs/character"
+    }
+  },
+  "$defs": {
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region",
+        "firstName",
+        "surname"
+      ],
+      "properties": {
+        "region": {
+          "enum": [
+            "eu",
+            "us",
+            "kr",
+            "tw"
+          ]
+        },
+        "firstName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 12
+        },
+        "surname": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 12
+        },
+        "guid": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "realmName": {
+          "type": "string",
+          "maxLength": 64
+        }
+      }
+    },
+    "character": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "snapshot",
+        "events"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/snapshot"
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capturedAt",
+        "level"
+      ],
+      "properties": {
+        "capturedAt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "xpMax": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rested": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "money": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playedTotal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "playedLevel": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "zone": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "subZone": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "mapId": {
+          "type": "integer"
+        },
+        "classFile": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "raceFile": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "sex": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "faction": {
+          "enum": [
+            "Alliance",
+            "Horde",
+            "Neutral"
+          ]
+        },
+        "guild": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "guildRank": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "ilvl": {
+          "type": "number",
+          "minimum": 0
+        },
+        "deaths": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "honor": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "equipment": {
+          "type": "array",
+          "maxItems": 19,
+          "items": {
+            "type": "object",
+            "required": [
+              "slot",
+              "itemId"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "slot": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 19
+              },
+              "itemId": {
+                "type": "integer"
+              },
+              "link": {
+                "type": "string",
+                "maxLength": 512
+              }
+            }
+          }
+        },
+        "professions": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "rank"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "rank": {
+                "type": "integer"
+              },
+              "max": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "reputations": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": [
+              "factionId",
+              "standing"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "factionId": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "standing": {
+                "type": "integer"
+              },
+              "value": {
+                "type": "integer"
+              },
+              "max": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "at",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "type": {
+          "enum": [
+            "SESSION_START",
+            "SESSION_END",
+            "LEVEL_UP",
+            "DEATH",
+            "DUNGEON_ENTER",
+            "GUILD_CHANGE",
+            "PROFESSION_TIER"
+          ]
+        },
+        "at": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "data": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

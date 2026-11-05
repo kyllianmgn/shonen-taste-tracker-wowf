@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contract/pair.response.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["deviceId", "deviceToken", "heartbeatIntervalSec"],
+  "properties": {
+    "deviceId": { "type": "string", "format": "uuid" },
+    "deviceToken": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+    "heartbeatIntervalSec": { "type": "integer", "minimum": 1 }
+  }
+}

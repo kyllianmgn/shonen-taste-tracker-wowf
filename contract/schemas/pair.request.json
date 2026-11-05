@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contract/pair.request.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "deviceName", "appVersion", "os"],
+  "properties": {
+    "code": { "type": "string", "pattern": "^[A-HJ-NP-Z2-9]{8}$" },
+    "deviceName": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "appVersion": { "type": "string", "maxLength": 20 },
+    "os": { "enum": ["windows", "macos"] }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contract/sync.response.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["heartbeatIntervalSec", "results"],
+  "properties": {
+    "heartbeatIntervalSec": { "type": "integer", "minimum": 1 },
+    "results": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/result" } }
+  },
+  "$defs": {
+    "characterRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["region", "firstName", "surname"],
+      "properties": {
+        "region": { "enum": ["eu", "us", "kr", "tw"] },
+        "firstName": { "type": "string", "minLength": 2, "maxLength": 12 },
+        "surname": { "type": "string", "minLength": 2, "maxLength": 12 }
+      }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["key", "status", "acceptedEvents", "duplicateEvents", "flags"],
+      "properties": {
+        "key": { "$ref": "#/$defs/characterRef" },
+        "status": { "enum": ["ok", "untracked", "owned_by_other", "rejected"] },
+        "acceptedEvents": { "type": "integer", "minimum": 0 },
+        "duplicateEvents": { "type": "integer", "minimum": 0 },
+        "flags": { "type": "array", "items": { "type": "string", "maxLength": 64 } }
+      }
+    }
+  }
+}
