@@ -1,30 +1,32 @@
-import 'package:logging/logging.dart';
+import 'device_pairing.dart';
 
-/// Device pairing with the server (`POST /v1/devices/pair`), implemented in C-05.
+/// Pairing as the tray menu sees it ("Appairer" / "Délier").
 abstract interface class PairingService {
   /// Whether a device token is stored.
   Future<bool> isPaired();
 
-  /// Asks the user for a pairing code and pairs. Returns true on success.
+  /// Asks the player for a pairing code and pairs. Returns true on success.
   Future<bool> pair();
 
-  /// Forgets the device token.
+  /// Revokes the device and forgets the token.
   Future<void> unpair();
 }
 
-/// Placeholder until C-05.
-class NotImplementedPairingService implements PairingService {
-  static final _log = Logger('pairing');
+/// "Appairer" opens the pairing window; the rest goes to [DevicePairing].
+class WindowPairingService implements PairingService {
+  WindowPairingService({required this.pairing, required this.showPairingWindow});
+
+  final DevicePairing pairing;
+
+  /// Shows the first-run window and completes with true once paired, false if closed.
+  final Future<bool> Function() showPairingWindow;
 
   @override
-  Future<bool> isPaired() async => false;
+  Future<bool> isPaired() => pairing.isPaired();
 
   @override
-  Future<bool> pair() async {
-    _log.info('pair: not implemented yet (C-05)');
-    return false;
-  }
+  Future<bool> pair() => showPairingWindow();
 
   @override
-  Future<void> unpair() async => _log.info('unpair: not implemented yet (C-05)');
+  Future<void> unpair() => pairing.unpair();
 }

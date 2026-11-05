@@ -37,6 +37,12 @@ class TrayController with TrayListener {
     await trayManager.destroy();
   }
 
+  /// Settings changed outside the tray menu (first-run window).
+  void updateSettings(AppSettings settings) {
+    _appSettings = settings;
+    _render();
+  }
+
   /// Entry point for every state change (game detection, sends, pairing).
   void dispatch(TrayEvent event) {
     final previous = _state;
