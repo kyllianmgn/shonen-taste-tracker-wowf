@@ -42,14 +42,29 @@ void main() {
     // The server echoes the secrets back in every error message, the worst case.
     var status = 201;
     final server = FakeServer((r) {
-      if (status == 201) return jsonResponse(201, pairBody());
+      if (status == 201) {
+        return r.url.path.endsWith('/heartbeat')
+            ? jsonResponse(200, {'heartbeatIntervalSec': 600, 'serverTime': 1})
+            : jsonResponse(201, pairBody());
+      }
       return jsonResponse(status, {
-        'error': {'code': 'validation_failed', 'message': 'bad $code ${r.headers['authorization']}'},
+        'error': {
+          'code': 'validation_failed',
+          'message': 'bad $code ${r.headers['authorization']}',
+        },
       });
     });
     final store = MemoryTokenStore();
-    final client = ApiClient(baseUrl: Uri.parse('https://api.example.test'), httpClient: server.client);
-    final pairing = DevicePairing(client: client, store: store, deviceName: 'PC', appVersion: '1.0.0');
+    final client = ApiClient(
+      baseUrl: Uri.parse('https://api.example.test'),
+      httpClient: server.client,
+    );
+    final pairing = DevicePairing(
+      client: client,
+      store: store,
+      deviceName: 'PC',
+      appVersion: '1.0.0',
+    );
     final errors = <Object>[];
 
     await pairing.pairWithCode(code);

@@ -66,7 +66,12 @@ void main() {
     test('the validator rejects a broken body (control)', () {
       expect(contractErrors('pair.request', {'code': 'k7p29qxm'}), isNotEmpty);
       expect(
-        contractErrors('heartbeat.request', {'sentAt': 1, 'gameRunning': true, 'appVersion': 'x', 'extra': 1}),
+        contractErrors('heartbeat.request', {
+          'sentAt': 1,
+          'gameRunning': true,
+          'appVersion': 'x',
+          'extra': 1,
+        }),
         isNotEmpty,
       );
     });
@@ -84,7 +89,9 @@ void main() {
     });
 
     test('heartbeat with and without lastCharacter, as in the fixtures', () async {
-      final server = FakeServer((_) => jsonResponse(200, {'heartbeatIntervalSec': 600, 'serverTime': 1}));
+      final server = FakeServer(
+        (_) => jsonResponse(200, {'heartbeatIntervalSec': 600, 'serverTime': 1}),
+      );
       final client = clientFor(server);
 
       await client.heartbeat(token, heartbeatRunning);
@@ -155,7 +162,10 @@ void main() {
       expect(server.last.headers['authorization'], 'Bearer $sampleToken');
       expect(sync.heartbeatIntervalSec, 600);
       expect(sync.results.map((r) => r.status), [SyncStatus.ok, SyncStatus.ownedByOther]);
-      expect(sync.results.first.key, const CharacterRef(region: 'eu', firstName: 'Davina', surname: 'Asaria'));
+      expect(
+        sync.results.first.key,
+        const CharacterRef(region: 'eu', firstName: 'Davina', surname: 'Asaria'),
+      );
       expect(sync.results.first.acceptedEvents, 2);
     });
 
@@ -198,14 +208,31 @@ void main() {
     }
 
     test('error bodies used below are valid error.json', () {
-      for (final code in ['invalid_token', 'code_unknown', 'code_expired', 'code_used', 'rate_limited']) {
-        expect(contractErrors('error', {'error': {'code': code, 'message': 'm'}}), isEmpty);
+      for (final code in [
+        'invalid_token',
+        'code_unknown',
+        'code_expired',
+        'code_used',
+        'rate_limited',
+      ]) {
+        expect(
+          contractErrors('error', {
+            'error': {'code': code, 'message': 'm'},
+          }),
+          isEmpty,
+        );
       }
     });
 
     test('404 code_unknown, 410 code_expired, 409 code_used', () async {
-      expect(await failure(errorResponse(404, 'code_unknown'), withToken: false), isA<CodeUnknown>());
-      expect(await failure(errorResponse(410, 'code_expired'), withToken: false), isA<CodeExpired>());
+      expect(
+        await failure(errorResponse(404, 'code_unknown'), withToken: false),
+        isA<CodeUnknown>(),
+      );
+      expect(
+        await failure(errorResponse(410, 'code_expired'), withToken: false),
+        isA<CodeExpired>(),
+      );
       expect(await failure(errorResponse(409, 'code_used'), withToken: false), isA<CodeUsed>());
     });
 
@@ -234,10 +261,14 @@ void main() {
 
     test('429 without, or with a broken, Retry-After', () async {
       expect((await failure(errorResponse(429, 'rate_limited')) as RateLimited).retryAfter, isNull);
-      final broken = await failure(errorResponse(429, 'rate_limited', headers: {'retry-after': 'soon'}));
+      final broken = await failure(
+        errorResponse(429, 'rate_limited', headers: {'retry-after': 'soon'}),
+      );
       expect((broken as RateLimited).retryAfter, isNull);
       final past = HttpDate.format(now.subtract(const Duration(minutes: 1)));
-      final late = await failure(errorResponse(429, 'rate_limited', headers: {'retry-after': past}));
+      final late = await failure(
+        errorResponse(429, 'rate_limited', headers: {'retry-after': past}),
+      );
       expect((late as RateLimited).retryAfter, Duration.zero);
     });
 
@@ -253,7 +284,10 @@ void main() {
       expect(await failure(jsonResponse(200, {'serverTime': 1})), isA<UnexpectedResponse>());
       expect(await failure(http.Response('not json', 200)), isA<UnexpectedResponse>());
       expect(
-        await failure(jsonResponse(201, {'deviceId': 'x', 'heartbeatIntervalSec': 600}), withToken: false),
+        await failure(
+          jsonResponse(201, {'deviceId': 'x', 'heartbeatIntervalSec': 600}),
+          withToken: false,
+        ),
         isA<UnexpectedResponse>(),
       );
     });

@@ -34,10 +34,8 @@ final _validators = <String, js.JsonSchema>{};
 /// Validator for `contract/schemas/<name>.json` (draft 2020-12).
 js.JsonSchema contractSchema(String name) => _validators.putIfAbsent(
   name,
-  () => js.JsonSchema.create(
-    contractSchemaJson(name),
-    schemaVersion: js.SchemaVersion.draft2020_12,
-  ),
+  () =>
+      js.JsonSchema.create(contractSchemaJson(name), schemaVersion: js.SchemaVersion.draft2020_12),
 );
 
 /// The validation errors of [instance] against [name], empty when valid.

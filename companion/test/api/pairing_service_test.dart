@@ -20,7 +20,10 @@ void main() {
     windowsShown = 0;
     service = WindowPairingService(
       pairing: DevicePairing(
-        client: ApiClient(baseUrl: Uri.parse('https://api.example.test'), httpClient: server.client),
+        client: ApiClient(
+          baseUrl: Uri.parse('https://api.example.test'),
+          httpClient: server.client,
+        ),
         store: store,
         deviceName: 'PC',
         appVersion: '1.0.0',

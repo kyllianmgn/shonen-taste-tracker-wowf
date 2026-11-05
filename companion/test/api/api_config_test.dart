@@ -7,7 +7,10 @@ import 'package:forevertracker_sync/app/app_info.dart';
 void main() {
   group('parseApiBaseUrl', () {
     test('accepts http and https URLs, without the trailing slash', () {
-      expect(parseApiBaseUrl('https://forever.example.test'), Uri.parse('https://forever.example.test'));
+      expect(
+        parseApiBaseUrl('https://forever.example.test'),
+        Uri.parse('https://forever.example.test'),
+      );
       expect(parseApiBaseUrl('http://localhost:3000/'), Uri.parse('http://localhost:3000'));
       expect(parseApiBaseUrl(' https://x.test/api// '), Uri.parse('https://x.test/api'));
     });
