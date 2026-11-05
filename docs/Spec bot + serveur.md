@@ -1,0 +1,451 @@
+# Spec technique — bot Discord et serveur
+
+## Périmètre et stack
+
+Un seul service Node, **ForeverTracker Server**, contient l'API HTTP, le bot Discord et les tâches planifiées ; il partage une base PostgreSQL. Il reçoit les données de l'appli compagnon (onglet addon + appli) et les rend dans Discord.
+
+### Stack
+
+- Node LTS, TypeScript strict.
+- NestJS : API d'ingestion, callback OAuth Battle.net, `GET /health`.
+- discord.js v14 dans un module Nest, slash commands, Components V2 pour le tableau.
+- PostgreSQL 16, ORM au choix (Prisma ou TypeORM), migrations versionnées.
+- Docker Compose (service + base) derrière Caddy pour le HTTPS.
+- Tests : unitaires sur les règles (présence, validation, rendu du tableau), e2e sur l'API avec une base de test.
+
+### Modules
+
+| Module | Rôle |
+| --- | --- |
+| `core` | Serveurs Discord, joueurs, personnages, appartenance |
+| `ingest` | Appairage, battements, synchros, validation, déduplication |
+| `presence` | Sessions, passage en ligne / hors ligne, expiration des battements |
+| `discord` | Commandes, rendu du tableau, publication des logs, file d'envoi |
+| `bnet` | OAuth joueur, client API Blizzard Forever |
+| `jobs` | Tâches planifiées (expiration, débounce du tableau, nettoyage) |
+
+Les modules communiquent par événements internes (`character.updated`, `session.started`, `session.ended`, `event.recorded`) : `ingest` et `presence` les émettent, `discord` les consomme.
+
+## Contrat d'échange
+
+Quatre endpoints JSON sous `https://<domaine>/v1`, authentifiés par jeton d'appareil (`Authorization: Bearer <deviceToken>`) sauf l'appairage. C'est la référence unique pour l'appli et le serveur.
+
+| Méthode | Chemin | Auth | Limite par appareil |
+| --- | --- | --- | --- |
+| POST | `/v1/devices/pair` | Aucune | 5 / min par IP |
+| POST | `/v1/heartbeat` | Bearer | 2 / min |
+| POST | `/v1/sync` | Bearer | 2 / min, 512 Ko max |
+| DELETE | `/v1/devices/me` | Bearer | — |
+
+### Appairage
+
+Le code vient de `/lier appli` : 8 caractères sans ambiguïté (pas de 0/O, 1/I), valable 10 min, usage unique, rattaché au membre Discord.
+
+```json
+POST /v1/devices/pair
+{ "code": "K7P29QXM", "deviceName": "PC-salon", "appVersion": "0.1.0", "os": "windows" }
+
+201
+{ "deviceId": "6f1c…", "deviceToken": "<43 caractères base64url>", "heartbeatIntervalSec": 600 }
+```
+
+Erreurs : `404 code_unknown`, `410 code_expired`, `409 code_used`. Le serveur ne stocke que le SHA-256 du jeton.
+
+### Battement
+
+```json
+POST /v1/heartbeat
+{ "sentAt": 1793900000, "gameRunning": true, "appVersion": "0.1.0",
+  "lastCharacter": { "region": "eu", "firstName": "Davina", "surname": "Asaria" } }
+
+200
+{ "heartbeatIntervalSec": 600, "serverTime": 1793900002 }
+```
+
+`lastCharacter` est facultatif (inconnu tant que l'addon n'a rien écrit).
+
+### Synchro
+
+```json
+POST /v1/sync
+{ "sentAt": 1793900000, "schema": 1, "addonVersion": "0.1.0",
+  "characters": [
+    { "key": { "region": "eu", "firstName": "Davina", "surname": "Asaria",
+                "guid": "Player-4242-0A1B2C3D", "realmName": "CAMWOW EU5 Realm 1 PvE" },
+      "snapshot": { "capturedAt": 1793900000, "level": 23, "xp": 4120, "xpMax": 13600, "money": 384512,
+                    "playedTotal": 81234, "zone": "Duskwood", "classFile": "PRIEST", "…": "mêmes champs que les SavedVariables" },
+      "events": [ { "id": "Player-4242-0A1B2C3D-1793899800-2", "type": "LEVEL_UP", "at": 1793899800,
+                    "data": { "level": 23, "zone": "Duskwood" } } ] } ] }
+
+200
+{ "heartbeatIntervalSec": 600,
+  "results": [ { "key": { "region": "eu", "firstName": "Davina", "surname": "Asaria" },
+                 "status": "ok", "acceptedEvents": 1, "duplicateEvents": 0, "flags": [] } ] }
+```
+
+`status` par perso : `ok` · `untracked` (perso du joueur mais au-delà de ses deux persos suivis : stocké, pas affiché) · `owned_by_other` (déjà rattaché à un autre membre : rien stocké) · `rejected` (validation échouée, détail dans `flags`).
+
+### Règles de validation
+
+- `region` ∈ `eu`, `us`, `kr`, `tw` ; prénom et nom 2-12 caractères ; `level` entre 1 et `LEVEL_CAP` (60).
+- `capturedAt` et `at` pas plus de 5 min dans le futur.
+- Snapshot plus ancien que le dernier stocké : ignoré sans erreur. Niveau ou `playedTotal` en baisse : rejeté, flag `regression`.
+- Plus de 5 niveaux gagnés entre deux snapshots espacés de moins de 15 min : stocké avec le flag `suspect_level_jump`, événements non publiés dans Discord.
+- Événements dédupliqués par `(character_id, event_id)` ; doublons comptés, jamais une erreur.
+- Perso inconnu du serveur et non rattaché : rattaché automatiquement au propriétaire de l'appareil s'il suit moins de deux persos (le premier devient principal), sinon `untracked`.
+
+### Erreurs
+
+Format commun : `{ "error": { "code": "…", "message": "…" } }`. `400 validation_failed`, `401 invalid_token`, `413 payload_too_large`, `422 unknown_schema`, `429 rate_limited` avec en-tête `Retry-After`.
+
+## Modèle de données
+
+Un joueur Discord possède ses persos une fois pour toutes ; chaque serveur Discord choisit qui il affiche via `membership`. Schéma de référence (PostgreSQL, à traduire dans l'ORM choisi) :
+
+```sql
+CREATE TABLE guild_config (
+  guild_id            TEXT PRIMARY KEY,          -- id du serveur Discord
+  board_channel_id    TEXT,
+  board_message_ids   TEXT[] NOT NULL DEFAULT '{}', -- 1 ou plusieurs messages si pagination
+  logs_channel_id     TEXT,
+  level_announce_step INT  NOT NULL DEFAULT 1,     -- 1 = chaque niveau, 10 = tous les 10
+  log_deaths          BOOLEAN NOT NULL DEFAULT false,
+  board_sort          TEXT NOT NULL DEFAULT 'level', -- level | played | name
+  timezone            TEXT NOT NULL DEFAULT 'Europe/Paris',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE player (
+  discord_user_id TEXT PRIMARY KEY,
+  hide_money      BOOLEAN NOT NULL DEFAULT false,
+  hide_zone       BOOLEAN NOT NULL DEFAULT false,
+  hide_presence   BOOLEAN NOT NULL DEFAULT false,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE membership (                       -- joueur affiché sur tel serveur
+  guild_id        TEXT REFERENCES guild_config ON DELETE CASCADE,
+  discord_user_id TEXT REFERENCES player ON DELETE CASCADE,
+  PRIMARY KEY (guild_id, discord_user_id)
+);
+
+CREATE TABLE character (
+  id              BIGSERIAL PRIMARY KEY,
+  region          TEXT NOT NULL,
+  first_name      TEXT NOT NULL,
+  surname         TEXT NOT NULL,
+  guid            TEXT,
+  realm_name      TEXT,
+  ruleset         TEXT,                          -- NORMAL | PVP | RP | PVP_RP
+  class_file      TEXT, race_file TEXT, faction TEXT,
+  owner_id        TEXT REFERENCES player ON DELETE SET NULL,
+  role            TEXT CHECK (role IN ('main','alt','untracked')),
+  bnet_verified   BOOLEAN NOT NULL DEFAULT false,
+  last_snapshot_id BIGINT
+  -- unicité : CREATE UNIQUE INDEX ON character (region, lower(first_name), lower(surname));
+);
+-- au plus un 'main' et un 'alt' par owner_id (index partiels uniques)
+
+CREATE TABLE device (
+  id            UUID PRIMARY KEY,
+  owner_id      TEXT NOT NULL REFERENCES player ON DELETE CASCADE,
+  token_sha256  TEXT NOT NULL UNIQUE,
+  name TEXT, app_version TEXT, os TEXT,
+  last_seen_at  TIMESTAMPTZ,
+  game_running  BOOLEAN NOT NULL DEFAULT false,
+  revoked_at    TIMESTAMPTZ
+);
+
+CREATE TABLE pairing_code (
+  code_sha256 TEXT PRIMARY KEY,
+  owner_id    TEXT NOT NULL REFERENCES player ON DELETE CASCADE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ
+);
+
+CREATE TABLE snapshot (
+  id           BIGSERIAL PRIMARY KEY,
+  character_id BIGINT NOT NULL REFERENCES character ON DELETE CASCADE,
+  captured_at  TIMESTAMPTZ NOT NULL,
+  level INT NOT NULL, xp INT, xp_max INT, money BIGINT, played_total INT,
+  zone TEXT, sub_zone TEXT,
+  detail       JSONB NOT NULL,                   -- équipement, métiers, réputations, etc.
+  source       TEXT NOT NULL DEFAULT 'app',      -- app | manual | bnet_account | bnet_public
+  flags        TEXT[] NOT NULL DEFAULT '{}',
+  received_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE game_session (
+  id           BIGSERIAL PRIMARY KEY,
+  owner_id     TEXT NOT NULL REFERENCES player ON DELETE CASCADE,
+  character_id BIGINT REFERENCES character,      -- connu après la 1re synchro
+  started_at   TIMESTAMPTZ NOT NULL,
+  ended_at     TIMESTAMPTZ,
+  end_reason   TEXT,                             -- game_closed | heartbeat_timeout
+  level_start INT, level_end INT, money_start BIGINT, money_end BIGINT,
+  played_start INT, played_end INT
+);
+
+CREATE TABLE game_event (
+  id           BIGSERIAL PRIMARY KEY,
+  character_id BIGINT NOT NULL REFERENCES character ON DELETE CASCADE,
+  event_id     TEXT NOT NULL,                    -- id fourni par l'addon
+  type         TEXT NOT NULL,
+  at           TIMESTAMPTZ NOT NULL,
+  data         JSONB NOT NULL,
+  flags        TEXT[] NOT NULL DEFAULT '{}',
+  published_at TIMESTAMPTZ,                      -- null = pas encore posté dans les logs
+  UNIQUE (character_id, event_id)
+);
+
+CREATE TABLE bnet_token (                       -- mode de base uniquement
+  owner_id        TEXT PRIMARY KEY REFERENCES player ON DELETE CASCADE,
+  region          TEXT NOT NULL,
+  token_encrypted BYTEA NOT NULL,                 -- AES-256-GCM, clé TOKEN_ENC_KEY
+  expires_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE oauth_state (                      -- flux /lier battlenet
+  state_sha256      TEXT PRIMARY KEY,
+  owner_id          TEXT NOT NULL REFERENCES player ON DELETE CASCADE,
+  guild_id          TEXT,
+  region            TEXT NOT NULL,
+  interaction_token TEXT NOT NULL,              -- pour éditer la réponse éphémère (15 min)
+  expires_at        TIMESTAMPTZ NOT NULL,
+  used_at           TIMESTAMPTZ
+);
+```
+
+- `/quitter` supprime la ligne `player` : persos détachés (`owner_id` à null, rôle `untracked`), appareils, sessions et appartenances effacés ; snapshots et événements effacés avec les persos orphelins par une tâche de nettoyage.
+- Rétention : snapshots à 1 par heure au-delà de 30 jours, événements conservés.
+
+## Présence et sessions
+
+Un joueur est **en ligne** si au moins un de ses appareils non révoqués a `game_running = true` et un battement reçu depuis moins de 2,5 × l'intervalle (25 min avec l'intervalle par défaut de 10 min).
+
+### Transitions
+
+| Situation | Action |
+| --- | --- |
+| Battement `gameRunning: true` alors que le joueur est hors ligne | Ouvrir une `game_session` (perso = `lastCharacter` s'il est connu), émettre `session.started` |
+| Synchro pendant une session ouverte | Renseigner le perso s'il manquait ; valeurs de départ depuis le premier snapshot ou le `SESSION_START` de l'addon ; mettre à jour les valeurs de fin |
+| `SESSION_START` d'un autre perso pendant la session | Fermer la session courante, en ouvrir une nouvelle pour ce perso |
+| Battement `gameRunning: false` et aucun autre appareil actif | Attendre 90 s une éventuelle synchro finale, puis fermer (`game_closed`) et émettre `session.ended` |
+| Plus de battement depuis le délai d'expiration | Tâche chaque minute : fermer (`heartbeat_timeout`) et émettre `session.ended` |
+
+### Récap de session
+
+Calculé à la fermeture : durée, niveaux gagnés (`level_end - level_start`), or gagné ou perdu, temps de jeu ajouté (`played_end - played_start`), zone de fin, nombre de morts (événements `DEATH` de la période).
+
+- Session de moins de 2 min sans aucun changement : fermée sans log (simple lancement / fermeture du jeu).
+- `hide_presence` : la session est enregistrée mais ni la pastille ni les logs de connexion ne sont affichés pour ce joueur.
+
+## Commandes Discord
+
+Slash commands uniquement, enregistrées globalement ; intents `Guilds` seulement. Toute commande qui appelle la base ou une API répond d'abord par `deferReply`. Un joueur apparaît sur le tableau d'un serveur dès qu'il y utilise `/perso ajouter` ou `/lier` (ligne `membership`).
+
+### Joueur
+
+| Commande | Options | Réponse | Comportement |
+| --- | --- | --- | --- |
+| `/lier appli` | — | Éphémère | Génère le code d'appairage (8 caractères, 10 min) et le lien de téléchargement de l'appli |
+| `/lier battlenet` | — | Éphémère | Lien OAuth à usage unique (section Liaison Battle.net) |
+| `/perso ajouter` | `prenom`, `nom`, `region` (EU par défaut, US, KR, TW), `role` (principal, secondaire) | Éphémère | Crée ou rattache le perso ; refus si un autre membre le possède ou si le rôle est déjà pris (proposer `/perso principal`) |
+| `/perso principal` | `perso` (autocomplétion) | Éphémère | Ce perso devient principal, l'ancien principal devient secondaire |
+| `/perso retirer` | `perso` | Éphémère | Passe le perso en `untracked` |
+| `/perso liste` | — | Éphémère | Persos du joueur, rôle, dernière synchro, vérifié Battle.net ou non |
+| `/profil` | `membre` (facultatif), `perso` (facultatif) | Publique | Fiche : niveau et barre d'XP, temps joué, or, zone, guilde, équipement (ilvl), métiers, réputations clés, 10 derniers niveaux avec dates |
+| `/session` | `membre` (facultatif) | Publique | Récap de la dernière session terminée, ou session en cours |
+| `/classement` | `critere` : niveau, temps joué, rythme (niveaux par heure jouée), or, morts | Publique | Top 15 des membres du serveur, persos principaux |
+| `/confidentialite` | `or`, `zone`, `presence` (booléens) | Éphémère | Masque ces infos partout |
+| `/quitter` | — | Éphémère avec bouton de confirmation | Supprime le joueur et révoque ses appareils |
+| `/sync` | code (texte de /ftr share) ou fichier (ForeverTracker.lua) | Éphémère | Envoi manuel du mode de base (section Mode de base) |
+
+Les valeurs masquées par `/confidentialite` ne sortent ni dans `/profil`, ni dans `/classement`, ni dans le tableau, ni dans les logs.
+
+### Admin (permission Gérer le serveur)
+
+| Commande | Options | Comportement |
+| --- | --- | --- |
+| `/setup` | `tableau` (salon, facultatif), `logs` (salon, facultatif) | Crée `#tableau-forever` et `#logs-forever` s'ils ne sont pas fournis, pose les permissions, publie le tableau |
+| `/config` | `annonce_niveau` (1, 5, 10), `morts` (oui/non), `tri` (niveau, temps, nom) | Met à jour `guild_config` et reconstruit le tableau |
+| `/admin perso` | `membre`, `prenom`, `nom`, `region`, `role` | Comme `/perso ajouter` pour un autre membre |
+| `/admin rafraichir` | — | Supprime et republie le tableau |
+| `/admin suspects` | — | Liste les snapshots et événements flagués des 7 derniers jours |
+
+Permissions posées par `/setup` sur le salon tableau : refus à @everyone d'Envoyer des messages, Envoyer dans les fils, Créer des fils publics et privés, Ajouter des réactions ; autorisation au bot de Voir le salon, Envoyer des messages, Intégrer des liens, Lire l'historique. Le bot a besoin de Gérer les salons sur le serveur pour poser ces permissions.
+
+## Salon tableau et salon logs
+
+### Tableau
+
+Un message Components V2 (un `Container` avec des `TextDisplay`), édité en place ; plusieurs messages si le texte dépasse le budget.
+
+```
+WoW: Forever — 12 joueurs suivis · 3 en ligne
+
+🟢 @Kyllian
+   Davina Asaria · Prêtre 23 · ▰▰▰▰▱▱▱▱▱▱ 38 % · Darkshire
+   ↳ Brom Ferrepied · Guerrier 11 · ▰▰▱▱▱▱▱▱▱▱ 72 %
+⚫ @Lina · vu il y a 3 h
+   Ilsa Ventbrume · Mage 19 · ▰▰▰▱▱▱▱▱▱▱ 10 %
+   ↳ non synchronisé
+
+Mis à jour <t:1793900000:R>
+```
+
+Règles de rendu :
+
+- Joueurs en ligne d'abord, puis tri `board_sort` (niveau du principal, temps joué ou nom).
+- Barre de 10 segments = niveau / 60 ; pourcentage = XP dans le niveau actuel. Au niveau 60, afficher « 60 » sans barre.
+- Zone omise si `hide_zone` ; pastille et « vu il y a » omis si `hide_presence`.
+- Perso sans aucun snapshot : « non synchronisé ».
+- Horodatage Discord relatif (`<t:…:R>`), mis à jour côté client, donc pas d'édition juste pour l'heure.
+
+Budget : 4 000 caractères de texte et 40 composants par message. Découper par blocs de joueurs ≤ 3 800 caractères ; créer ou supprimer des messages supplémentaires et garder leurs ids dans `board_message_ids`, dans l'ordre.
+
+Debounce : tout `character.updated`, `session.started` ou `session.ended` marque le serveur « à redessiner » ; une tâche toutes les 5 s redessine les serveurs marqués dont la dernière édition date d'au moins 15 s. Ne rien envoyer si le rendu est identique au précédent (hash du contenu).
+
+Reprise : erreur Discord `10008` (message inconnu) → republier et mémoriser le nouvel id ; `10003` (salon inconnu) ou `50013` (permissions manquantes) → désactiver le tableau et prévenir dans le salon logs. Au démarrage du service, redessiner tous les tableaux.
+
+### Logs
+
+| Événement | Message | Condition |
+| --- | --- | --- |
+| Début de session | 🟢 @membre est en jeu — Davina Asaria (niv. 23) | Pas `hide_presence` |
+| Fin de session | ⚫ Davina Asaria : 2 h 14 de jeu · niv. 21 → 23 · +38 po · fin à Darkshire · 1 mort | Session ≥ 2 min ou avec un changement |
+| Niveau | ⬆️ Davina Asaria passe niveau 24 (81 h de jeu) | `niveau % level_announce_step == 0` |
+| Niveau 60 | 🏆 Davina Asaria atteint le niveau 60 en 9 j 4 h de jeu | Toujours |
+| Perso suivi | ➕ @membre suit Davina Asaria (principal) | Toujours |
+| Mort | 💀 Davina Asaria est morte à Duskwood (niv. 23) | `log_deaths` |
+| Guilde | Davina Asaria rejoint \<Les Veilleurs> | Toujours |
+
+- File d'envoi par salon : au plus un message toutes les 1,5 s ; les événements d'un même joueur arrivés à moins de 10 s d'écart sont regroupés en un seul message.
+- `published_at` empêche toute double publication.
+- Événements reçus plus de 24 h après leur `at` (file hors ligne vidée tard) ou flagués : enregistrés, jamais publiés.
+- Or affiché en po / pa / pc à partir du cuivre.
+
+## Liaison Battle.net
+
+La liaison sert à prouver la propriété des persos et à importer prénom, nom, classe, race, faction et niveau ; le jeton joueur n'est conservé qu'en mode de base, 24 h au plus. L'API Forever n'est pas documentée par Blizzard : tout appel passe par un client isolé dans le module `bnet`.
+
+### Flux
+
+1. `/lier battlenet [region]` : le serveur crée un `state` aléatoire (32 octets, 10 min, usage unique) lié au membre et au **jeton d'interaction** Discord, puis répond en éphémère avec le lien : `https://oauth.battle.net/authorize?client_id=…&redirect_uri=<PUBLIC_BASE_URL>/oauth/bnet/callback&response_type=code&scope=wow.profile&state=<state>`
+2. `GET /oauth/bnet/callback?code&state` : vérifier le `state`, puis `POST https://oauth.battle.net/token` (auth Basic client id/secret, `grant_type=authorization_code`, `code`, `redirect_uri`). Jeton valable 24 h, sans jeton de rafraîchissement.
+3. `GET https://eu.api.blizzard.com/profile/user/wow?namespace=profile-forever-eu&locale=fr_FR` avec le jeton joueur (hôte et namespace selon la région).
+4. Lire `wow_accounts[].characters[]` : `name`, `surname`, `playable_class`, `playable_race`, `faction`, `level`, `id`. Le royaume interne n'est que dans le lien `protected_character` (`…/{realmId}-{characterId}`) ; le ruleset vient de `GET /data/wow/realm/{realmId}?namespace=dynamic-forever-eu`, champ `type.type` (index des royaumes mis en cache 24 h, jeton applicatif).
+5. Pour chaque perso : déjà au membre → `bnet_verified = true` ; à un autre membre non vérifié → transféré à ce membre et signalé aux admins ; inconnu → créé en `untracked`.
+6. Éditer la réponse éphémère d'origine (le jeton d'interaction vaut 15 min) avec la liste des persos et deux menus déroulants « principal » / « secondaire ». La page web du callback affiche seulement « Liaison réussie, retourne sur Discord ».
+7. Mode appli : jeter le jeton joueur. Mode de base : le garder chiffré jusqu'à son expiration (24 h) pour les relevés, puis le supprimer.
+
+### Erreurs
+
+| Cas | Réponse |
+| --- | --- |
+| `state` inconnu, expiré ou réutilisé | Page d'erreur, inviter à relancer `/lier battlenet` |
+| Profil de compte en 404 | « Aucun perso Forever trouvé. Connecte-toi une fois en jeu puis déconnecte-toi, et vérifie que le partage des données de jeu avec les développeurs est activé dans la confidentialité Battle.net. » |
+| 401 / 403 sur l'API | Relancer le flux une fois ; sinon message d'erreur générique et log serveur |
+| Interaction expirée (> 15 min) | Envoyer le résultat en message privé au membre |
+
+### Fiche publique (plus tard)
+
+Un job quotidien teste `GET /profile/wow/character/{prénom}-{nom}?namespace=profile-forever-eu` (prénom-nom en minuscules) sur un perso vérifié de niveau 10+. Dès qu'il répond 200, activer le drapeau `BNET_PUBLIC_PROFILE` : les persos sans appli sont rafraîchis toutes les 6 h depuis la fiche publique (niveau, équipement, `last_login_timestamp` affiché comme « vu pour la dernière fois »).
+
+Limites API : 100 requêtes/s et 36 000/h ; le client met en file et respecte les 429.
+
+## Mode de base (sans appli)
+
+Un joueur sans appli reste suivi : le bot relève Battle.net automatiquement, et le joueur peut envoyer le détail de l'addon à la main avec `/sync`. Le mode est déduit par joueur : au moins un appareil actif = mode appli, sinon mode de base.
+
+### Sources et rythme des relevés
+
+| Source | Déclencheur | Fréquence | Données |
+| --- | --- | --- | --- |
+| Profil de compte (OAuth) | Job | Toutes les 10 min tant que le jeton du joueur est valide (24 h) | Niveau, classe, race, faction |
+| Fiche publique (`BNET_PUBLIC_PROFILE`) | Job adaptatif | 10 min si le perso a changé dans les 24 h, 1 h sinon, 6 h si inactif depuis plus de 7 jours | Niveau, équipement, `last_login_timestamp` |
+| `/sync` | Le joueur | À la demande, au plus une fois toutes les 2 min | Snapshot complet et événements de l'addon |
+
+- Fiche publique : envoyer `If-Modified-Since` avec le `Last-Modified` reçu ; un `304` ne coûte rien et ne crée rien.
+- Jeton OAuth du mode de base : stocké chiffré (AES-GCM, clé `TOKEN_ENC_KEY` en variable d'environnement) dans une table `bnet_token(owner_id, token_encrypted, expires_at)`, supprimé à l'expiration. Après expiration, `/perso liste` affiche un bouton « Relier Battle.net ».
+- Chaque snapshot porte sa source : colonne `snapshot.source` ∈ `app`, `manual`, `bnet_account`, `bnet_public`.
+
+### Événements déduits
+
+Battle.net ne fournit pas d'événements : le serveur compare deux relevés successifs.
+
+- Niveau en hausse → un `LEVEL_UP` par niveau gagné, `event_id` = `bnet-<character_id>-<niveau>` (la déduplication évite tout doublon avec un `/sync` ultérieur portant le même niveau, puisque le log est publié une seule fois par niveau via `published_at`).
+- `last_login_timestamp` qui avance → fin de session déduite, horodatée avec cette valeur.
+
+### Commande `/sync`
+
+`/sync code:<texte>` ou `/sync fichier:<ForeverTracker.lua>`, réponse éphémère.
+
+- `code` : chaîne produite par `/ftr share` dans l'addon, format `FT1:` + base64url d'un JSON compressé en deflate brut. Décodage : `zlib.inflateRawSync`, puis mêmes validations que `POST /v1/sync`.
+- `fichier` : pièce jointe de 512 Ko maximum, parsée avec le même parseur de littéraux Lua que l'appli (jamais exécutée).
+- Seuls les persos du membre sont acceptés ; mêmes statuts et flags que le contrat d'échange.
+
+### Affichage en mode de base
+
+- Pas de pastille verte : le tableau affiche « vu il y a X » (dernier `last_login_timestamp` ou dernière donnée reçue) et une mention discrète « mode de base ».
+- Logs : pas de log de connexion ; niveaux et 60 publiés comme en mode appli ; fin de session publiée sous forme courte, « Davina Asaria : niv. 21 → 23 », sans durée.
+- Délai réaliste : 5 à 15 min après la déconnexion du joueur.
+
+### Critères d'acceptation du mode de base
+
+- [ ] Un joueur sans appareil mais lié à Battle.net voit son niveau mis à jour dans les 15 min suivant sa déconnexion.
+- [ ] Le jeton OAuth est chiffré en base et supprimé à son expiration.
+- [ ] Un `/sync` puis un relevé Battle.net au même niveau ne publient qu'un seul log de niveau.
+- [ ] Un code `/sync` corrompu ou d'un autre membre est refusé proprement.
+
+## Configuration et déploiement
+
+### Variables d'environnement
+
+| Variable | Exemple | Rôle |
+| --- | --- | --- |
+| `DISCORD_TOKEN` | — | Token du bot |
+| `DISCORD_CLIENT_ID` | — | Id de l'application, pour enregistrer les commandes |
+| `DATABASE_URL` | `postgres://ft:…@db:5432/ft` | Connexion PostgreSQL |
+| `PUBLIC_BASE_URL` | `https://ft.mondomaine.fr` | Base de l'API et du callback OAuth |
+| `BNET_CLIENT_ID`, `BNET_CLIENT_SECRET` | — | Application créée sur develop.battle.net |
+| `BNET_REDIRECT_URI` | `https://ft.mondomaine.fr/oauth/bnet/callback` | Doit être déclarée à l'identique chez Blizzard |
+| `BNET_DEFAULT_REGION` | `eu` | Région par défaut |
+| `BNET_PUBLIC_PROFILE` | `false` | Active la lecture des fiches publiques |
+| `HEARTBEAT_INTERVAL_SEC` | `600` | Renvoyé à l'appli |
+| `LEVEL_CAP` | `60` | Niveau maximum |
+| `BOARD_MIN_EDIT_INTERVAL_SEC` | `15` | Debounce du tableau |
+| `APP_DOWNLOAD_URL` | lien des releases | Donné par `/lier appli` |
+| `LOG_LEVEL` | `info` | Verbosité |
+| `TOKEN_ENC_KEY` | 32 octets en base64 | Chiffrement des jetons Battle.net du mode de base |
+
+### Docker
+
+- `docker-compose.yml` : services `server` (image Node, port 3000 non exposé) et `db` (postgres:16, volume nommé), dans le réseau de Caddy.
+- Caddy : `ft.mondomaine.fr { reverse_proxy server:3000 }`.
+- Migrations lancées au démarrage du conteneur ; `GET /health` vérifie la base et la connexion Discord.
+- Sauvegarde quotidienne de la base (`pg_dump`).
+
+### Discord Developer Portal
+
+- Scopes d'invitation : `bot`, `applications.commands`.
+- Permissions : Voir les salons, Envoyer des messages, Intégrer des liens, Lire l'historique, Gérer les salons.
+- Aucun intent privilégié.
+
+## Critères d'acceptation côté serveur
+
+Testables sans le jeu, avec un faux client qui rejoue les payloads du contrat d'échange.
+
+- [ ] `/setup` crée les deux salons, pose les permissions et publie le tableau ; un membre sans droits ne peut pas écrire dans le tableau.
+- [ ] `/perso ajouter` refuse un perso déjà possédé par un autre membre et un troisième perso suivi.
+- [ ] Appairage : un code expiré ou réutilisé est refusé ; le jeton n'est stocké qu'en SHA-256.
+- [ ] Une même synchro envoyée deux fois n'ajoute aucun événement ni aucun log.
+- [ ] Un snapshot avec un niveau en baisse est rejeté ; un saut de plus de 5 niveaux en moins de 15 min est flagué et non publié.
+- [ ] Battement `gameRunning: true` → pastille verte et log « en jeu » ; arrêt des battements → session fermée après le délai et récap publié.
+- [ ] Une rafale de 50 synchros en 10 s ne produit pas plus d'une édition du tableau toutes les 15 s, et aucune erreur 429 non gérée.
+- [ ] Au-delà de 40 joueurs, le tableau se répartit sur plusieurs messages sans dépasser 4 000 caractères chacun.
+- [ ] Message du tableau supprimé à la main → republié au prochain rendu.
+- [ ] `/confidentialite or:true` masque l'or partout : tableau, `/profil`, `/classement`, logs.
+- [ ] `/quitter` efface le joueur, révoque ses appareils ; ses envois suivants reçoivent `401`.
+- [ ] Flux Battle.net : un profil de compte en 404 donne le message d'aide ; un succès marque les persos vérifiés et le jeton n'est stocké que chiffré, 24 h au plus, en mode de base.
+- [ ] Redémarrage du service : tableaux redessinés, sessions ouvertes conservées.
