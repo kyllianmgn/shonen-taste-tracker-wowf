@@ -329,7 +329,7 @@ Formes reprises des relevés communautaires du 4 novembre ; `account-profile.404
 - Node LTS, Git, `gh`.
 - Docker Desktop (Postgres de dev).
 - Python 3 puis `pip install pytest lupa` (tests addon).
-- Flutter SDK avec le support Windows desktop (Visual Studio, charge « Développement Desktop en C++ »).
+- Flutter SDK avec le support Windows desktop (Visual Studio, charge « Développement Desktop en C++ »), et le mode développeur de Windows activé (`start ms-settings:developers`) : `flutter build windows` en a besoin pour les plugins.
 
 ### Serveur
 
@@ -484,7 +484,7 @@ Les specs avancent avec une valeur par défaut pour chaque point ; il suffit de 
 | --- | --- | --- |
 | Nom du projet, de l'addon et de la commande | ForeverTracker, `/ftr` | S-01 |
 | Domaine de l'API | `forever.vsgsrv.fr` sur ton VPS | S-17 (redirection OAuth) |
-| Techno de l'appli | Flutter Windows (alternatives : Tauri, .NET) | C-01 |
+| Techno de l'appli | Flutter Windows — **confirmé en C-01** (tray_manager 0.5, window_manager 0.5, logging) | C-01 |
 | Langue du bot | Français uniquement | S-05 |
 | Intervalle des battements / de la fenêtre Synchroniser | 10 min / 15 min | S-09, A-05 |
 | Logs des morts activés par défaut | Non (`log_deaths = false`) | S-13 |

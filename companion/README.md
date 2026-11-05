@@ -1,17 +1,53 @@
-# forevertracker_sync
+# ForeverTracker Sync (appli compagnon)
 
-ForeverTracker Sync companion app
+Appli de barre système Windows qui lit le fichier SavedVariables de l'addon et l'envoie au serveur.
+Spec : `docs/01-spec-addon-companion.md`, section « Appli compagnon ».
 
-## Getting Started
+## Commandes
 
-This project is a starting point for a Flutter application.
+```powershell
+cd companion
+flutter test
+flutter analyze
+dart format --set-exit-if-changed lib test tool
+flutter run -d windows --dart-define=API_BASE_URL=http://localhost:3000
+dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
+```
 
-A few resources to get you started if this is your first Flutter project:
+`flutter build windows` demande Visual Studio (charge C++) et le mode développeur de Windows.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Structure de `lib/`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| Dossier | Rôle | Tâche |
+| --- | --- | --- |
+| `settings/` | chemins `%APPDATA%\ForeverTrackerSync`, `settings.json`, interface « Démarrer avec Windows » | C-01 (lanceur réel : C-08) |
+| `app/` | démarrage : logs tournants | C-01 |
+| `ui/tray/` | machine d'état de l'icône, modèle du menu, routage des clics, adaptateur tray_manager | C-01 |
+| `lua/` | parseur de littéraux Lua | C-02 |
+| `wow_files/` | dossier `_forever_`, fichiers SavedVariables, surveillance | C-03 |
+| `process/` | détection du jeu | C-04 |
+| `api/` | client HTTP, appairage (interface vide pour l'instant) | C-05 |
+| `sync/` | battements et synchros (interface vide pour l'instant) | C-06 |
+| `queue/` | file hors ligne | C-07 |
+
+Les modules métier n'importent pas Flutter : seuls `main.dart` et `ui/tray/tray_controller.dart`
+touchent aux plugins.
+
+## Fichiers locaux
+
+Dans `%APPDATA%\ForeverTrackerSync\` :
+
+- `settings.json` : `gameFolder`, `startWithWindows` (vrai par défaut), `firstRunCompleted`, `version`.
+  Aucun secret ; un fichier illisible redonne les valeurs par défaut.
+- `forevertracker-sync.log` puis `.1.log` … `.4.log` : 1 Mo par fichier, 5 fichiers au plus.
+  Jamais de jeton, de code ni de contenu complet de SavedVariables.
+
+## Icône
+
+| Couleur | Quand |
+| --- | --- |
+| verte | jeu détecté, aucun problème (dernier envoi OK ou rien envoyé encore) |
+| grise | jeu fermé, aucun problème |
+| orange | non appairée, jeton révoqué (401), `schema` inconnu, ou dernier envoi en échec — même jeu fermé |
+
+La fenêtre n'est jamais affichée au démarrage ; la fermer la cache, « Quitter » arrête l'appli.
