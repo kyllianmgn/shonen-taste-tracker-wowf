@@ -197,7 +197,7 @@ def test_professions_fall_back_when_get_professions_returns_nothing(wow):
 
 def test_no_profession_at_all_is_an_empty_list(wow):
     login(wow, professions=[], skillLines=[{"name": "Métiers", "isHeader": True}])
-    assert snapshot(wow)["professions"] == []
+    assert snapshot(wow)["professions"] == {}  # empty Lua table
 
 
 def test_skill_lines_ignore_weapon_skills_and_languages(wow):
@@ -287,7 +287,7 @@ def test_reputation_entries_without_id_or_standing_are_skipped(wow):
 
 def test_no_faction_is_an_empty_list(wow):
     login(wow, factions=[])
-    assert snapshot(wow)["reputations"] == []
+    assert snapshot(wow)["reputations"] == {}  # empty Lua table
 
 
 def test_reputations_are_capped_at_200(wow):

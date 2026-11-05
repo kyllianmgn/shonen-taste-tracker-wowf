@@ -54,6 +54,10 @@ def test_example(wow):
   and counts its calls in `wow.wow.playedRequests`.
 - `print()` and `DEFAULT_CHAT_FRAME:AddMessage()` are captured in `WowTest.chat`
   (`lua_to_python(wow.wow.chat)`); `state.locale` sets `GetLocale()` (default `frFR`).
+- The "à vérifier" APIs (`GetAverageItemLevel`, `GetProfessions`, `GetSkillLineInfo`, `C_Reputation.*`,
+  `UnitHonor`, ...) are stubbed from `state` (`avgItemLevel`, `professions`, `skillLines`, `factions`,
+  `honor`). `wow.wow.removeApi("C_Reputation.GetNumFactions")` makes one disappear (a bare name such as
+  `"C_Reputation"` removes the whole namespace) and `wow.wow.breakApi(path)` makes it raise.
 - `Bindings.xml` and other XML files are skipped: the loader runs only `.lua` files.
 - `load_saved_variables` executes the file like the game client does. Use it only with fixtures from
   this repo: the server and the companion parse SavedVariables as literals and never execute them.

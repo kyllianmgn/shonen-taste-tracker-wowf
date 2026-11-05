@@ -33,8 +33,17 @@ def played_requests(wow):
     return wow.wow.playedRequests
 
 
+GUARDED_FIELDS = {"ilvl", "professions", "reputations", "honor"}
+
+
 def chat(wow):
     return lua_to_python(wow.wow.chat) or []
+
+
+def regional_warnings(wow):
+    """Chat lines other than the guarded-API debug report (test_collect_guarded.py)."""
+    report = ("API ", "APIs ", "métiers", "professions")
+    return [m for m in chat(wow) if not m.split(": ", 1)[-1].startswith(report)]
 
 
 # -- key ------------------------------------------------------------------------
@@ -88,7 +97,9 @@ def test_key_is_refreshed_on_login(wow):
 def test_login_snapshot_has_every_safe_field(wow):
     logged_in(wow, guild="Les Veilleurs", guildRank="Membre", guildRankIndex=3,
                inventory={1: LINK_HEAD, 8: LINK_FEET})
-    assert snapshot(wow) == {
+    # The "à vérifier" fields are covered by test_collect_guarded.py.
+    safe = {k: v for k, v in snapshot(wow).items() if k not in GUARDED_FIELDS}
+    assert safe == {
         "capturedAt": LOGIN_TIME,
         "level": 23,
         "xp": 4120,
@@ -346,7 +357,7 @@ def test_missing_request_time_played_does_not_crash(wow):
 def test_regional_names_disabled_warns_in_debug_mode(wow):
     wow.load_saved_variables('ForeverTrackerDB = { schema = 1, settings = { debug = true } }')
     logged_in(wow, regionalUniqueNames=False)
-    messages = chat(wow)
+    messages = regional_warnings(wow)
     assert len(messages) == 1
     assert "ForeverTracker" in messages[0]
     assert "noms uniques régionaux" in messages[0]
@@ -357,7 +368,7 @@ def test_regional_names_disabled_warns_in_debug_mode(wow):
 def test_regional_names_warning_in_english(wow):
     wow.load_saved_variables('ForeverTrackerDB = { schema = 1, settings = { debug = true } }')
     logged_in(wow, regionalUniqueNames=False, locale="enUS")
-    assert "regional unique names" in chat(wow)[0]
+    assert "regional unique names" in regional_warnings(wow)[0]
 
 
 def test_regional_names_disabled_is_silent_without_debug(wow):
@@ -369,12 +380,12 @@ def test_regional_names_disabled_is_silent_without_debug(wow):
 def test_regional_names_enabled_is_silent_in_debug_mode(wow):
     wow.load_saved_variables('ForeverTrackerDB = { schema = 1, settings = { debug = true } }')
     logged_in(wow)
-    assert chat(wow) == []
+    assert regional_warnings(wow) == []
 
 
 def test_missing_regional_names_api_does_not_crash(wow):
     wow.load_saved_variables('ForeverTrackerDB = { schema = 1, settings = { debug = true } }')
     wow.lua.execute("RegionalUniqueNamesEnabled = nil")
     logged_in(wow)
-    assert chat(wow) == []
+    assert regional_warnings(wow) == []
     assert character(wow)["key"]["region"] == "eu"
