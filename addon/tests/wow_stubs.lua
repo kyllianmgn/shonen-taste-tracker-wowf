@@ -46,6 +46,37 @@ local function defaultState()
     onTaxi = false,
     deadOrGhost = false,
     combatLockdown = false,
+    -- "à vérifier" APIs (see the section of the same name below)
+    avgItemLevel = 22.6,
+    avgItemLevelEquipped = 21.4,
+    honor = 0,
+    -- GetProfessions + GetProfessionInfo; professionIndices overrides the 5
+    -- returns of GetProfessions (prof1, prof2, archaeology, fishing, cooking).
+    professions = {
+      { name = "Herboristerie", rank = 112, max = 150 },
+      { name = "Alchimie", rank = 80, max = 150 },
+    },
+    professionIndices = nil,
+    -- GetNumSkillLines + GetSkillLineInfo (classic skill frame)
+    skillLines = {
+      { name = "Métiers", isHeader = true },
+      { name = "Herboristerie", rank = 112, max = 150 },
+      { name = "Alchimie", rank = 80, max = 150 },
+      { name = "Compétences secondaires", isHeader = true },
+      { name = "Pêche", rank = 30, max = 75 },
+      { name = "Compétences d'armes", isHeader = true },
+      { name = "Masses", rank = 110, max = 115 },
+      { name = "Langues", isHeader = true },
+      { name = "Langue : orc", rank = 300, max = 300 },
+    },
+    -- C_Reputation.GetFactionDataByIndex returns these tables as-is
+    factions = {
+      { factionID = 1118, name = "Classique", isHeader = true, isHeaderWithRep = false },
+      { factionID = 76, name = "Orgrimmar", reaction = 5, currentStanding = 4200,
+        currentReactionThreshold = 3000, nextReactionThreshold = 9000 },
+      { factionID = 530, name = "Trolls Sombrelance", reaction = 4, currentStanding = 300,
+        currentReactionThreshold = 0, nextReactionThreshold = 3000 },
+    },
     -- time
     serverTime = 1793900000,
     playedTotal = 81234,
@@ -142,6 +173,77 @@ end
 function UnitOnTaxi(unit) return unit == "player" and WowTest.state.onTaxi or false end
 function UnitIsDeadOrGhost(unit) return unit == "player" and WowTest.state.deadOrGhost or false end
 function InCombatLockdown() return WowTest.state.combatLockdown end
+
+-- ---------------------------------------------------------------------------
+-- "À vérifier" APIs: present by default; tests remove or break them with
+-- WowTest.removeApi / WowTest.breakApi to check the addon's guards.
+-- ---------------------------------------------------------------------------
+
+function GetAverageItemLevel()
+  return WowTest.state.avgItemLevel, WowTest.state.avgItemLevelEquipped
+end
+
+function UnitHonor(unit)
+  if unit ~= "player" then return 0 end
+  return WowTest.state.honor
+end
+
+function GetProfessions()
+  local s = WowTest.state
+  if s.professionIndices then
+    local p = s.professionIndices
+    return p[1], p[2], p[3], p[4], p[5]
+  end
+  local n = #s.professions
+  return n >= 1 and 1 or nil, n >= 2 and 2 or nil, n >= 3 and 3 or nil,
+    n >= 4 and 4 or nil, n >= 5 and 5 or nil
+end
+
+function GetProfessionInfo(index)
+  local p = WowTest.state.professions[index]
+  if not p then return nil end
+  -- name, icon, skillLevel, maxSkillLevel, numAbilities, spelloffset, skillLine, skillModifier
+  return p.name, 136246, p.rank, p.max, 2, 0, 182, 0
+end
+
+TRADE_SKILLS = "Métiers"
+SECONDARY_SKILLS = "Compétences secondaires"
+
+function GetNumSkillLines() return #WowTest.state.skillLines end
+
+function GetSkillLineInfo(index)
+  local line = WowTest.state.skillLines[index]
+  if not line then return nil end
+  -- skillName, isHeader, isExpanded, skillRank, numTempPoints, skillModifier, skillMaxRank
+  if line.isHeader then
+    return line.name, true, true, 0, 0, 0, 0
+  end
+  return line.name, false, false, line.rank, 0, 0, line.max
+end
+
+C_Reputation = {}
+function C_Reputation.GetNumFactions() return #WowTest.state.factions end
+function C_Reputation.GetFactionDataByIndex(index) return WowTest.state.factions[index] end
+
+-- Resolve "C_Reputation.GetNumFactions" to (parent table, field name).
+local function apiSlot(path)
+  local namespace, field = path:match("^([%w_]+)%.([%w_]+)$")
+  if namespace then return _G[namespace], field end
+  return _G, path
+end
+
+-- Make an API disappear, as on a client that does not have it.
+-- A bare namespace ("C_Reputation") removes the whole table.
+function WowTest.removeApi(path)
+  local parent, name = apiSlot(path)
+  if parent then parent[name] = nil end
+end
+
+-- Make an API raise a Lua error when called.
+function WowTest.breakApi(path)
+  local parent, name = apiSlot(path)
+  parent[name] = function() error("stub: " .. path .. " is broken") end
+end
 
 -- ---------------------------------------------------------------------------
 -- Time and timers
