@@ -1,7 +1,7 @@
 name: companion
 
-# Every PR and push to main: format, analyze and tests (Linux, replayable with
-# act), then a Windows release build and the Inno Setup installer.
+# Every PR and push to main: format and analyze (Linux, replayable with act),
+# then on Windows the tests, a release build and the Inno Setup installer.
 # A companion-v<version> tag also publishes a GitHub release with the installer.
 # Path filters do not apply to tag pushes.
 on:
@@ -41,9 +41,8 @@ jobs:
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test tool
       - run: flutter analyze
-      # Windows-only tests (dart:ffi, registry) are tagged @TestOn('windows')
-      # and run in the build job.
-      - run: flutter test
+      # Tests run in the build job: the app is Windows-only and its tests use
+      # Windows paths, the registry, the Credential Manager and NTFS watchers.
 
   build:
     needs: check

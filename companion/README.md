@@ -251,9 +251,9 @@ disparaît quand le fichier gagne en réputation, ou plus tôt avec un certifica
 
 CI (`.github/workflows/companion.yml`) :
 
-- chaque PR et push sur main : `dart format`, `flutter analyze`, `flutter test` (Linux), puis sur
-  Windows les tests (y compris `@TestOn('windows')`), `flutter build windows` et l'installeur,
-  gardé 14 jours en artefact ;
+- chaque PR et push sur main : `dart format` et `flutter analyze` (Linux), puis sur Windows
+  `flutter test`, `flutter build windows` et l'installeur, gardé 14 jours en artefact (les tests
+  supposent Windows : chemins, registre, Gestionnaire d'identifiants, watcher NTFS) ;
 - tag `companion-v<version>` : idem, puis release GitHub avec l'installeur. Le tag doit égaler la
   `version` de `pubspec.yaml` ; `companion-v<version>-<suffixe>` donne une pré-version (test), que
   l'appli ne propose jamais. L'adresse du serveur vient de la variable de dépôt `API_BASE_URL`
@@ -264,6 +264,6 @@ Publier une version : monter `version` dans `pubspec.yaml` et `appVersion` dans
 `git tag companion-v1.1.0` et `git push origin companion-v1.1.0`.
 
 Rejouer le job Linux en local : `act pull_request -j check -P ubuntu-latest=catthehacker/ubuntu:act-latest`
-(Docker). Les jobs Windows ne tournent que sur GitHub.
+(Docker) : format et analyse. Les tests, le build et l'installeur ne tournent que sur GitHub (Windows).
 
 macOS : v2 (docs/03, « Décisions ouvertes »).
