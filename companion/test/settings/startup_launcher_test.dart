@@ -22,8 +22,7 @@ class MemoryRunKey implements RunKey {
 }
 
 void main() {
-  const exe =
-      r'C:\Users\Jaina\AppData\Local\Programs\ForeverTracker Sync\forevertracker_sync.exe';
+  const exe = r'C:\Users\Jaina\AppData\Local\Programs\ForeverTracker Sync\forevertracker_sync.exe';
   late MemoryRunKey key;
   late RegistryStartupLauncher launcher;
 

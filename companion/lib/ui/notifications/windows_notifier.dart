@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:local_notifier/local_notifier.dart';
 import 'package:logging/logging.dart';
 
@@ -20,11 +22,17 @@ class WindowsNotifier implements Notifier {
   }
 
   @override
-  Future<void> show({required String title, required String body}) async {
+  Future<void> show({
+    required String title,
+    required String body,
+    Future<void> Function()? onClick,
+  }) async {
     if (!_ready) {
       _log.warning('notification not shown (not set up): $title');
       return;
     }
-    await localNotifier.notify(LocalNotification(title: title, body: body));
+    final notification = LocalNotification(title: title, body: body);
+    if (onClick != null) notification.onClick = () => unawaited(onClick());
+    await localNotifier.notify(notification);
   }
 }

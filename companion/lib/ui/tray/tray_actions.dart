@@ -14,6 +14,7 @@ class TrayActions {
     required this.startup,
     required this.settings,
     required this.openLogs,
+    required this.openUpdate,
     required this.quit,
     required this.emit,
   });
@@ -23,6 +24,9 @@ class TrayActions {
   final StartupLauncher startup;
   final SettingsStore settings;
   final Future<void> Function() openLogs;
+
+  /// Opens the download link of the release found at startup (C-08).
+  final Future<void> Function() openUpdate;
   final Future<void> Function() quit;
 
   /// Feeds state-machine events back (pairing changes).
@@ -46,6 +50,8 @@ class TrayActions {
         return next;
       case TrayAction.openLogs:
         await openLogs();
+      case TrayAction.openUpdate:
+        await openUpdate();
       case TrayAction.quit:
         await quit();
     }

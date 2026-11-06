@@ -62,6 +62,12 @@ class Unpaired extends TrayEvent {
   const Unpaired();
 }
 
+/// The startup check found a newer release on GitHub (C-08).
+class UpdateAvailable extends TrayEvent {
+  const UpdateAvailable(this.version);
+  final String version;
+}
+
 class TrayState {
   const TrayState({
     this.paired = false,
@@ -72,6 +78,7 @@ class TrayState {
     this.anySendSucceeded = false,
     this.lastSyncAt,
     this.lastCharacter,
+    this.updateVersion,
   });
 
   final bool paired;
@@ -82,6 +89,9 @@ class TrayState {
   final bool anySendSucceeded;
   final DateTime? lastSyncAt;
   final String? lastCharacter;
+
+  /// Newer release to offer in the menu; does not change colour or summary.
+  final String? updateVersion;
 
   TrayState apply(TrayEvent event) => switch (event) {
     GameStarted() => _copy(gameRunning: true),
@@ -98,6 +108,7 @@ class TrayState {
     Unauthorized() => _copy(paired: false, tokenRevoked: true),
     Paired() => _copy(paired: true, tokenRevoked: false, lastSendFailed: false),
     Unpaired() => _copy(paired: false, tokenRevoked: false),
+    UpdateAvailable(:final version) => _copy(updateVersion: version),
   };
 
   TrayIssue? get issue {
@@ -140,6 +151,7 @@ class TrayState {
     bool? anySendSucceeded,
     DateTime? lastSyncAt,
     String? lastCharacter,
+    String? updateVersion,
   }) => TrayState(
     paired: paired ?? this.paired,
     gameRunning: gameRunning ?? this.gameRunning,
@@ -149,5 +161,6 @@ class TrayState {
     anySendSucceeded: anySendSucceeded ?? this.anySendSucceeded,
     lastSyncAt: lastSyncAt ?? this.lastSyncAt,
     lastCharacter: lastCharacter ?? this.lastCharacter,
+    updateVersion: updateVersion ?? this.updateVersion,
   );
 }

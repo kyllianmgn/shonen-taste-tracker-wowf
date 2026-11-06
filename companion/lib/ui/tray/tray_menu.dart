@@ -1,7 +1,7 @@
 import 'tray_state.dart';
 
 /// What a tray menu click asks for; routed by `TrayActions`.
-enum TrayAction { syncNow, pair, unpair, toggleStartWithWindows, openLogs, quit }
+enum TrayAction { syncNow, pair, unpair, toggleStartWithWindows, openLogs, openUpdate, quit }
 
 /// Toolkit-agnostic menu entry, mapped to tray_manager items by the controller.
 class TrayMenuEntry {
@@ -26,13 +26,16 @@ class TrayMenuEntry {
 
 /// Builds the menu from the docs/01 « Interface » list: status (character,
 /// last sync, server), Synchroniser maintenant, Appairer / Délier,
-/// Démarrer avec Windows, Ouvrir les logs, Quitter.
+/// Démarrer avec Windows, Ouvrir les logs, Quitter. A newer release (C-08)
+/// adds a download entry under the status.
 List<TrayMenuEntry> buildTrayMenu(TrayState state, {required bool startWithWindows}) {
   return [
     TrayMenuEntry('Statut : ${state.summary}', enabled: false),
     TrayMenuEntry('Perso : ${state.lastCharacter ?? 'aucun'}', enabled: false),
     TrayMenuEntry('Dernière synchro : ${_formatSync(state.lastSyncAt)}', enabled: false),
     TrayMenuEntry('Serveur : ${_serverLabel(state.server)}', enabled: false),
+    if (state.updateVersion case final version?)
+      TrayMenuEntry('Télécharger la version $version', action: TrayAction.openUpdate),
     const TrayMenuEntry.separator(),
     TrayMenuEntry('Synchroniser maintenant', action: TrayAction.syncNow, enabled: state.paired),
     state.paired

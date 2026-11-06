@@ -19,7 +19,8 @@ Map<String, Object?> release(
   'prerelease': prerelease,
   'html_url': '$_repoUrl/releases/tag/$tag',
   'assets': [
-    for (final a in assets) {'name': a, 'browser_download_url': '$_repoUrl/releases/download/$tag/$a'},
+    for (final a in assets)
+      {'name': a, 'browser_download_url': '$_repoUrl/releases/download/$tag/$a'},
   ],
 };
 
