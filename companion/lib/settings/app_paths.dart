@@ -22,6 +22,9 @@ class AppPaths {
   /// Rotating log files live next to the settings, as the spec requires.
   Directory get logsDir => dataDir;
 
+  /// Last snapshot sent per character and the ids of the events already sent (C-06).
+  File get sentStateFile => File(_join(dataDir.path, 'sync-state.json'));
+
   /// Offline queue folder (filled in C-07).
   Directory get queueDir => Directory(_join(dataDir.path, 'queue'));
 

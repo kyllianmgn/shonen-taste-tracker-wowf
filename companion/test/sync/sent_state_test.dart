@@ -14,7 +14,10 @@ Map<String, Object?> _char(String first, int capturedAt, List<String> ids) => {
 void main() {
   group('SentState', () {
     test('remembers the last capturedAt per character and the sent event ids', () {
-      final state = SentState()..markSent([_char('Davina', 100, ['a', 'b'])]);
+      final state = SentState()
+        ..markSent([
+          _char('Davina', 100, ['a', 'b']),
+        ]);
 
       expect(state.lastCapturedAt(characterKeyOf(_char('Davina', 0, []))!), 100);
       expect(state.lastCapturedAt('eu/Morwen/Asaria'), isNull);
@@ -59,7 +62,10 @@ void main() {
     });
 
     test('round-trips through JSON', () {
-      final state = SentState()..markSent([_char('Davina', 100, ['a', 'b'])]);
+      final state = SentState()
+        ..markSent([
+          _char('Davina', 100, ['a', 'b']),
+        ]);
       final copy = SentState.fromJson(state.toJson());
 
       expect(copy.lastCapturedAt('eu/Davina/Asaria'), 100);
@@ -84,7 +90,11 @@ void main() {
 
     test('saves and loads', () async {
       final store = FileSentStateStore(file);
-      await store.save(SentState()..markSent([_char('Davina', 7, ['x'])]));
+      await store.save(
+        SentState()..markSent([
+          _char('Davina', 7, ['x']),
+        ]),
+      );
 
       final loaded = await store.load();
       expect(loaded.lastCapturedAt('eu/Davina/Asaria'), 7);

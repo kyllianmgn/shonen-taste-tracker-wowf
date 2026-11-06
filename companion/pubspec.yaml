@@ -66,6 +66,9 @@ flutter:
   # Tray icons, regenerated with: dart run tool/make_tray_icons.dart
   assets:
     - assets/tray/
+    # Copy of contract/schemas/sync.request.json, read by the Lua normalizer
+    # (test/sync/contract_asset_test.dart keeps them equal).
+    - assets/contract/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

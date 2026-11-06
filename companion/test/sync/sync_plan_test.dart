@@ -81,9 +81,13 @@ void main() {
           _char('Davina', 100, [('a', 'SESSION_START', 90)]),
         ]);
 
-      final plan = planCharacters([
-        _char('Davina', 100, [('a', 'SESSION_START', 90)]),
-      ], state, force: true);
+      final plan = planCharacters(
+        [
+          _char('Davina', 100, [('a', 'SESSION_START', 90)]),
+        ],
+        state,
+        force: true,
+      );
 
       expect(_ids(plan.single), ['a']);
     });

@@ -41,7 +41,8 @@ String _lua(Object value) => switch (value) {
   String s => '"${s.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"',
   bool b => '$b',
   num n => '$n',
-  Map<String, Object> m => '{ ${[for (final e in m.entries) '["${e.key}"] = ${_lua(e.value)}'].join(', ')} }',
+  Map<String, Object> m =>
+    '{ ${[for (final e in m.entries) '["${e.key}"] = ${_lua(e.value)}'].join(', ')} }',
   List<Object> l => '{ ${l.map(_lua).join(', ')} }',
   _ => throw ArgumentError('unsupported $value'),
 };

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:window_manager/window_manager.dart';
@@ -14,11 +16,14 @@ import 'api/device_pairing.dart';
 import 'api/pairing_service.dart';
 import 'app/app_info.dart';
 import 'app/rotating_file_sink.dart';
+import 'process/win32_process_lister.dart';
 import 'settings/app_paths.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_store.dart';
 import 'settings/startup_launcher.dart';
-import 'sync/sync_service.dart';
+import 'sync/game_folder_session.dart';
+import 'sync/sent_state.dart';
+import 'sync/sync_runtime.dart';
 import 'ui/first_run/first_run_controller.dart';
 import 'ui/first_run/first_run_window.dart';
 import 'ui/tray/tray_actions.dart';
@@ -47,9 +52,11 @@ Future<void> main() async {
   if (baseUrl == null) {
     _log.severe('API_BASE_URL is missing or invalid: build with --dart-define=API_BASE_URL=…');
   }
+  final apiClient = ApiClient(baseUrl: baseUrl, httpClient: http.Client());
+  final tokenStore = CredentialManagerTokenStore();
   final devicePairing = DevicePairing(
-    client: ApiClient(baseUrl: baseUrl, httpClient: http.Client()),
-    store: CredentialManagerTokenStore(),
+    client: apiClient,
+    store: tokenStore,
     deviceName: deviceNameFor(Platform.localHostname),
     appVersion: appVersion,
   );
@@ -59,6 +66,24 @@ Future<void> main() async {
   final startup = NotImplementedStartupLauncher();
 
   late final TrayController tray;
+  final syncRequestSchema = jsonDecode(
+    await rootBundle.loadString('assets/contract/sync.request.json'),
+  ) as Map<String, Object?>;
+  final sentState = FileSentStateStore(paths.sentStateFile);
+  final processLister = Win32ProcessLister();
+  final sync = SyncRuntime(
+    (folder) => GameFolderSyncSession(
+      gameFolder: folder,
+      processLister: processLister,
+      api: apiClient,
+      tokens: tokenStore,
+      sentState: sentState,
+      syncRequestSchema: syncRequestSchema,
+      emit: (e) => tray.dispatch(e),
+      appVersion: appVersion,
+    ),
+  );
+
   final firstRun = FirstRunPresenter(
     build: (current) => FirstRunController(
       locator: const ForeverFolderLocator(),
@@ -68,7 +93,10 @@ Future<void> main() async {
       initial: current,
     ),
     settings: store,
-    onSettingsChanged: (s) => tray.updateSettings(s),
+    onSettingsChanged: (s) {
+      tray.updateSettings(s);
+      unawaited(sync.setGameFolder(s.gameFolder));
+    },
   );
   final pairing = WindowPairingService(pairing: devicePairing, showPairingWindow: firstRun.present);
   final paired = await pairing.isPaired();
@@ -77,28 +105,36 @@ Future<void> main() async {
     initial: TrayState(paired: paired),
     settings: settings,
     buildActions: (emit) => TrayActions(
-      sync: NotImplementedSyncService(),
+      sync: sync,
       pairing: pairing,
       startup: startup,
       settings: store,
       openLogs: () => Process.run('explorer.exe', [paths.logsDir.path]),
       quit: () async {
         _log.info('quitting');
+        await sync.dispose();
         await tray.dispose();
         await windowManager.setPreventClose(false);
         await windowManager.destroy();
       },
-      emit: emit,
+      emit: (event) {
+        emit(event);
+        // Newly paired: send everything the files hold.
+        if (event is Paired) unawaited(sync.syncNow());
+      },
     ),
   );
   await tray.start();
+  unawaited(sync.setGameFolder(settings.gameFolder));
 
   runApp(CompanionApp(firstRun: firstRun));
 
   if (shouldShowFirstRun(paired: paired)) {
     unawaited(
       firstRun.present().then((ok) {
-        if (ok) tray.dispatch(const Paired());
+        if (!ok) return;
+        tray.dispatch(const Paired());
+        unawaited(sync.syncNow());
       }),
     );
   }

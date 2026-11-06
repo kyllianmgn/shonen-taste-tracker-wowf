@@ -7,13 +7,14 @@ import 'package:logging/logging.dart';
 
 import 'api_error.dart';
 import 'api_models.dart';
+import 'companion_api.dart';
 import 'device_token.dart';
 
 /// HTTP client for the four endpoints of the exchange contract (docs/02).
 ///
 /// Every failure is an [ApiException]. Logs carry the method, path and status
 /// only: never a body, a header, the token or the pairing code.
-class ApiClient {
+class ApiClient implements CompanionApi {
   ApiClient({
     required this.baseUrl,
     required http.Client httpClient,
@@ -33,6 +34,7 @@ class ApiClient {
   Future<PairResponse> pair(PairRequest request) =>
       _send('POST', '/v1/devices/pair', body: request.toJson(), parse: PairResponse.fromJson);
 
+  @override
   Future<HeartbeatResponse> heartbeat(DeviceToken token, HeartbeatRequest request) => _send(
     'POST',
     '/v1/heartbeat',
@@ -41,6 +43,7 @@ class ApiClient {
     parse: HeartbeatResponse.fromJson,
   );
 
+  @override
   Future<SyncResponse> sync(DeviceToken token, SyncRequest request) =>
       _send('POST', '/v1/sync', token: token, body: request.toJson(), parse: SyncResponse.fromJson);
 
