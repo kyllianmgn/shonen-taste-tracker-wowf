@@ -1,9 +1,13 @@
-# Placeholder CI for the companion package: lint and tests are added by the package's tasks.
 name: companion
 
+# Every PR and push to main: format, analyze and tests (Linux, replayable with
+# act), then a Windows release build and the Inno Setup installer.
+# A companion-v<version> tag also publishes a GitHub release with the installer.
+# Path filters do not apply to tag pushes.
 on:
   push:
     branches: [main]
+    tags: ["companion-v*"]
     paths:
       - "companion/**"
       - "contract/**"
@@ -13,9 +17,122 @@ on:
       - "companion/**"
       - "contract/**"
       - ".github/workflows/companion.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.9"
 
 jobs:
-  placeholder:
+  check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: companion
     steps:
-      - run: echo "No companion checks yet"
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: flutter analyze
+      # Windows-only tests (dart:ffi, registry) are tagged @TestOn('windows')
+      # and run in the build job.
+      - run: flutter test
+
+  build:
+    needs: check
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: companion
+        shell: bash
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Version from pubspec.yaml and the tag
+        id: version
+        run: |
+          pubspec=$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml)
+          version="$pubspec"
+          if [[ "$GITHUB_REF" == refs/tags/companion-v* ]]; then
+            version="${GITHUB_REF#refs/tags/companion-v}"
+            # The tag must match pubspec.yaml (appVersion is checked against it),
+            # except test tags: companion-v<pubspec version>-<suffix>.
+            if [[ "$version" != "$pubspec" && "$version" != "$pubspec"-* ]]; then
+              echo "::error::tag companion-v$version does not match pubspec.yaml version $pubspec"
+              exit 1
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "numeric=$pubspec" >> "$GITHUB_OUTPUT"
+          echo "ForeverTracker Sync $version"
+      - run: flutter pub get
+      - run: flutter test
+      - name: Build the Windows release
+        run: >-
+          flutter build windows --release
+          --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://forever.vsgsrv.fr' }}
+          --dart-define=UPDATE_REPO=${{ github.repository }}
+      - name: Bundle the Visual C++ runtime next to the exe
+        run: |
+          for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
+            cp "/c/Windows/System32/$dll" build/windows/x64/runner/Release/
+          done
+      - name: Install Inno Setup when the runner image lacks it
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+      - name: Build the installer
+        shell: pwsh
+        run: >-
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          "/DAppVersion=${{ steps.version.outputs.version }}"
+          "/DAppVersionNumeric=${{ steps.version.outputs.numeric }}"
+          installer\forevertracker_sync.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: companion/build/installer/ForeverTrackerSync-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/companion-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer
+          path: dist
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          flags=()
+          # Pre-release tags (companion-v1.0.0-test.1) are never offered by the
+          # app's update check.
+          if [[ "$VERSION" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$TAG" dist/*.exe \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "ForeverTracker Sync $VERSION" \
+            --notes "Installeur Windows de ForeverTracker Sync $VERSION. Installeur non signé : si Windows affiche SmartScreen, clique sur « Informations complémentaires » puis « Exécuter quand même »." \
+            "${flags[@]}"
