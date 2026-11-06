@@ -11,7 +11,7 @@ flutter test
 flutter analyze
 dart format --set-exit-if-changed lib test tool
 flutter run -d windows --dart-define=API_BASE_URL=http://localhost:3000
-dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
+dart run tool/make_icons.dart        # régénère assets/tray/*.ico et windows/runner/resources/app_icon.ico
 ```
 
 `flutter build windows` demande Visual Studio (charge C++) et le mode développeur de Windows.
@@ -20,7 +20,7 @@ dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
 
 | Dossier | Rôle | Tâche |
 | --- | --- | --- |
-| `settings/` | chemins `%APPDATA%\ForeverTrackerSync`, `settings.json`, interface « Démarrer avec Windows » | C-01 (lanceur réel : C-08) |
+| `settings/` | chemins `%APPDATA%\ForeverTrackerSync`, `settings.json`, « Démarrer avec Windows » (clé Run) | C-01, C-08 |
 | `app/` | démarrage : logs tournants | C-01 |
 | `ui/tray/` | machine d'état de l'icône, modèle du menu, routage des clics, adaptateur tray_manager | C-01 |
 | `lua/` | parseur de littéraux Lua | C-02 |
@@ -31,6 +31,8 @@ dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
 | `sync/` | battements, synchros, ensemble des ids déjà envoyés ; relie C-02 à C-05 | C-06 |
 | `queue/` | file hors ligne, arrêt des envois sur `401` | C-07 |
 | `ui/notifications/` | notification Windows (`local_notifier`) | C-07 |
+| `update/` | comparaison de versions, vérification de la dernière release GitHub | C-08 |
+| `../installer/` | script Inno Setup | C-08 |
 
 Les modules métier n'importent pas Flutter : seuls `main.dart`, `ui/tray/tray_controller.dart` et
 `ui/notifications/windows_notifier.dart` touchent aux plugins (`ui/first_run/` n'utilise que les widgets).
@@ -204,3 +206,64 @@ Dans `%APPDATA%\ForeverTrackerSync\` :
 | orange | non appairée, jeton révoqué (401, avec notification Windows), `schema` inconnu, ou dernier envoi en échec (requête en file) — même jeu fermé |
 
 La fenêtre n'est jamais affichée au démarrage ; la fermer la cache, « Quitter » arrête l'appli.
+
+Icônes définitives : double chevron « level up », blanc sur la pastille de couleur dans la barre
+système (un seul chevron à 16 px), doré sur fond bleu nuit pour l'exe, le menu Démarrer et
+l'installeur. `dart run tool/make_icons.dart` les régénère ; `test/app/icons_test.dart` vérifie
+les tailles.
+
+## Démarrer avec Windows (`settings/`)
+
+`RegistryStartupLauncher` écrit `"<chemin de l'exe>"` dans la valeur `ForeverTracker Sync` de
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (`RegSetKeyValueW` via `dart:ffi`, sans
+droit admin) ou la supprime. Activé par défaut : la case de la fenêtre de premier lancement est
+cochée et appliquée à l'appairage ; le menu la bascule. À chaque démarrage, une fois le premier
+lancement terminé, le réglage est réappliqué (chemin réparé après une réinstallation ailleurs).
+Un exe lancé depuis `build\windows\` (`flutter run`) n'est jamais inscrit. Une erreur du registre
+est journalisée, jamais bloquante. Le joueur peut aussi désactiver l'entrée dans l'onglet
+Démarrage du Gestionnaire des tâches. Le désinstalleur supprime la valeur.
+
+## Mises à jour (`update/`)
+
+Au démarrage, `UpdateChecker` lit `GET https://api.github.com/repos/<dépôt>/releases` (anonyme,
+sans jeton). Le dépôt vient de `--dart-define=UPDATE_REPO=owner/name` (défaut
+`shokkzu/forever-tracker`, la CI passe le dépôt courant ; vide = vérification coupée). Ne comptent
+que les tags `companion-v<version>` (SemVer), hors brouillons, pré-versions GitHub et versions
+avec suffixe (`-test.1`) ; les releases de l'addon sont ignorées. Si la plus haute dépasse
+`appVersion`, **une** notification « Mise à jour disponible » et l'entrée de menu « Télécharger la
+version X » ouvrent l'installeur `ForeverTrackerSync-Setup-*.exe` de la release (ou sa page) dans
+le navigateur. Seuls les liens `https://github.com/…` sont ouverts. Pas de mise à jour silencieuse
+en v1 : rien n'est téléchargé ni installé par l'appli. Échec réseau, limite de débit, réponse
+illisible : rien n'est affiché, nouvel essai au prochain démarrage.
+
+## Installeur et releases
+
+`installer/forevertracker_sync.iss` (Inno Setup 6) : installation par utilisateur dans
+`%LOCALAPPDATA%\Programs\ForeverTracker Sync`, sans droit admin, raccourci du menu Démarrer
+(le même que celui dont les notifications ont besoin), runtime Visual C++ copié à côté de l'exe.
+Une mise à jour ferme l'appli puis la relance. La désinstallation arrête l'appli et supprime la
+valeur Run ; `%APPDATA%\ForeverTrackerSync` et le jeton du Gestionnaire d'identifiants restent
+(« Délier » avant de désinstaller pour révoquer l'appareil).
+
+L'installeur n'est **pas signé** en v1 : Windows SmartScreen affiche « Windows a protégé votre
+ordinateur » ; « Informations complémentaires » puis « Exécuter quand même ». L'avertissement
+disparaît quand le fichier gagne en réputation, ou plus tôt avec un certificat de signature.
+
+CI (`.github/workflows/companion.yml`) :
+
+- chaque PR et push sur main : `dart format`, `flutter analyze`, `flutter test` (Linux), puis sur
+  Windows les tests (y compris `@TestOn('windows')`), `flutter build windows` et l'installeur,
+  gardé 14 jours en artefact ;
+- tag `companion-v<version>` : idem, puis release GitHub avec l'installeur. Le tag doit égaler la
+  `version` de `pubspec.yaml` ; `companion-v<version>-<suffixe>` donne une pré-version (test), que
+  l'appli ne propose jamais. L'adresse du serveur vient de la variable de dépôt `API_BASE_URL`
+  (défaut `https://forever.vsgsrv.fr`).
+
+Publier une version : monter `version` dans `pubspec.yaml` et `appVersion` dans
+`lib/app/app_info.dart` (un test vérifie qu'ils sont égaux), fusionner dans main, puis
+`git tag companion-v1.1.0` et `git push origin companion-v1.1.0`.
+
+Rejouer le job Linux en local : `act pull_request -j check -P ubuntu-latest=catthehacker/ubuntu:act-latest`
+(Docker). Les jobs Windows ne tournent que sur GitHub.
+
+macOS : v2 (docs/03, « Décisions ouvertes »).

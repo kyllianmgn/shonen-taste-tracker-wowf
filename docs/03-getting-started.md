@@ -431,7 +431,7 @@ flutter run -d windows --dart-define=API_BASE_URL=http://localhost:3000
 - [ ] **C-05** Client API, fenêtre de premier lancement, appairage, jeton dans le stockage sécurisé Windows.
 - [ ] **C-06** Battements, envoi des synchros, ensemble des ids déjà envoyés.
 - [ ] **C-07** File hors ligne avec délais croissants, gestion du `401`.
-- [ ] **C-08** Démarrage avec Windows, installeur, release GitHub, vérification de mise à jour.
+- [x] **C-08** Démarrage avec Windows, installeur, release GitHub, vérification de mise à jour.
 
 ### M6 — Mise en production
 
@@ -490,5 +490,7 @@ Les specs avancent avec une valeur par défaut pour chaque point ; il suffit de 
 | Logs des morts activés par défaut | Non (`log_deaths = false`) | S-13 |
 | Régions acceptées | EU par défaut, US, KR, TW possibles | S-06 |
 | Distribution de l'addon | Releases GitHub, CurseForge plus tard | A-07 |
-| Support macOS de l'appli | v2 | C-08 |
+| Support macOS de l'appli | v2 — **confirmé en C-08** (Windows uniquement en v1) | C-08 |
+| Installeur de l'appli | Inno Setup, non signé en v1 — **décidé en C-08** (MSIX écarté : signature obligatoire) | C-08 |
+| Dépôt GitHub des releases | `shokkzu/forever-tracker`, tags `companion-v*` | C-08 |
 | Comportement au 3e perso d'un joueur | Stocké en `untracked`, non affiché | S-08 |
