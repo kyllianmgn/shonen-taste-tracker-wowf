@@ -80,7 +80,7 @@ export class BnetLinkService {
       });
       await this.reportTransfers(state.ownerId, entries);
 
-      // Step 7. App mode: the default sink throws the token away. S-18 plugs the base mode in here.
+      // Step 7: kept encrypted in base mode, thrown away in app mode (BaseModeTokenSink).
       await this.tokenSink.receive({
         ownerId: state.ownerId,
         region: state.region,

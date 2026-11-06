@@ -41,6 +41,7 @@ function char(
 function player(id: string, overrides: Partial<BoardPlayer> = {}): BoardPlayer {
   return {
     discordUserId: id,
+    mode: 'app',
     privacy: { hideZone: false, hidePresence: false },
     presence: { online: false, lastSeenAt: null },
     main: char('Main', id, 'WARRIOR', 10, { xp: 0, xpMax: 1000 }),
@@ -234,6 +235,51 @@ describe('renderBoard', () => {
       const offline = player('2', { main: char('High', 'Level', 'MAGE', 40) });
       const text = allText(renderBoard(input([hiddenOnline, offline])));
       expect(text.indexOf('<@2>')).toBeLessThan(text.indexOf('<@1>'));
+    });
+  });
+
+  describe('base mode (no app)', () => {
+    const seen = new Date(NOW.getTime() - 3_600_000);
+    const seenTs = Math.floor(seen.getTime() / 1000);
+    const baseMode = (id: string, overrides: Partial<BoardPlayer> = {}) =>
+      player(id, {
+        mode: 'base',
+        presence: { online: false, lastSeenAt: seen },
+        main: char('Davina', 'Asaria', 'PRIEST', 23, { zone: 'Darkshire' }),
+        ...overrides,
+      });
+
+    it('shows « vu il y a X » and a discreet « mode de base », without any dot', () => {
+      const text = allText(renderBoard(input([baseMode('1')])));
+      expect(text).toContain(`\n<@1> · vu <t:${seenTs}:R> · *mode de base*\n`);
+      expect(text).not.toMatch(/🟢|⚫/);
+    });
+
+    it('is never shown nor counted online', () => {
+      const p = baseMode('1', { presence: { online: true, lastSeenAt: seen } });
+      const text = allText(renderBoard(input([p])));
+      expect(text).toContain('0 en ligne');
+      expect(text).not.toContain('🟢');
+    });
+
+    it('without any data received yet only shows « mode de base »', () => {
+      const text = allText(renderBoard(input([baseMode('1', { presence: { online: false, lastSeenAt: null } })])));
+      expect(text).toContain('\n<@1> · *mode de base*\n');
+    });
+
+    it('hide_presence omits « vu » but keeps the mode', () => {
+      const p = baseMode('1', { privacy: { hideZone: false, hidePresence: true } });
+      const text = allText(renderBoard(input([p])));
+      expect(text).not.toContain('vu <');
+      expect(text).toContain('\n<@1> · *mode de base*\n');
+    });
+
+    it('sorts with app-mode players by level, after those online', () => {
+      const online = player('a', { presence: { online: true, lastSeenAt: NOW }, main: char('Low', 'Level', 'MAGE', 2) });
+      const offlineLow = player('b', { main: char('Mid', 'Level', 'MAGE', 10) });
+      const text = allText(renderBoard(input([offlineLow, baseMode('c'), online])));
+      expect(text.indexOf('<@a>')).toBeLessThan(text.indexOf('<@c>'));
+      expect(text.indexOf('<@c>')).toBeLessThan(text.indexOf('<@b>'));
     });
   });
 

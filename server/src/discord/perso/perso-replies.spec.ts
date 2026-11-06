@@ -1,5 +1,6 @@
 import type { CharacterName, CharacterRef, OwnedCharacter } from '../../core/characters/character.types';
-import { addReply, listReply, setMainReply, untrackReply, PERSO_MSG } from './perso-replies';
+import { ButtonStyle, ComponentType } from 'discord.js';
+import { addReply, listMessage, listReply, PERSO_IDS, setMainReply, untrackReply, PERSO_MSG } from './perso-replies';
 
 const davina: CharacterRef = { id: 1n, region: 'eu', firstName: 'Davina', surname: 'Asaria' };
 const borek: CharacterRef = { id: 2n, region: 'eu', firstName: 'Borek', surname: 'Tanu' };
@@ -123,5 +124,28 @@ describe('listReply', () => {
 
   it('escapes Markdown in names coming from other sources', () => {
     expect(listReply([owned({ ...davina, firstName: '*Da_vi*' }, 'main')])).toContain('\\*Da\\_vi\\*');
+  });
+});
+
+describe('listMessage', () => {
+  const mine = [owned(davina, 'main', { bnetVerified: true })];
+
+  it('is the plain list while the Battle.net token is valid or not needed', () => {
+    expect(listMessage(mine, false)).toEqual({ content: listReply(mine) });
+  });
+
+  it('offers a « Relier Battle.net » button once the base-mode token has expired', () => {
+    expect(listMessage(mine, true)).toEqual({
+      content: `${listReply(mine)}\n\n${PERSO_MSG.bnetExpired}`,
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            { type: ComponentType.Button, style: ButtonStyle.Primary, label: 'Relier Battle.net', custom_id: PERSO_IDS.relinkBnet },
+          ],
+        },
+      ],
+    });
+    expect(PERSO_MSG.bnetExpired).toContain('expiré');
   });
 });
