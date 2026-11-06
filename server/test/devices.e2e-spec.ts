@@ -1,4 +1,4 @@
-import { Controller, Get, INestApplication, UseGuards } from '@nestjs/common';
+import { Controller, Get, INestApplication, Module, UseGuards } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -12,6 +12,7 @@ import { DISCORD_CLIENT } from '../src/discord/client/discord-client.service';
 import { CurrentDevice, type AuthenticatedDevice } from '../src/ingest/auth/current-device';
 import { DeviceAuthGuard } from '../src/ingest/auth/device-auth.guard';
 import { RateLimit, RateLimitGuard } from '../src/ingest/auth/rate-limit.guard';
+import { IngestModule } from '../src/ingest/ingest.module';
 import { sha256Hex } from '../src/ingest/pairing/pairing-secrets';
 import { PAIRING_CODE_TTL_SEC, PairingService } from '../src/ingest/pairing/pairing.service';
 import { FakeDiscordClient } from './fake-discord-client';
@@ -26,6 +27,10 @@ class ProtectedTestController {
     return { deviceId: device.id, ownerId: device.ownerId };
   }
 }
+
+/** Like a later ingest feature module: it imports IngestModule to get the guards. */
+@Module({ imports: [IngestModule], controllers: [ProtectedTestController] })
+class ProtectedTestModule {}
 
 const USER = '300000000000000001';
 const GUILD = '400000000000000001';
@@ -65,15 +70,14 @@ function expectError(res: request.Response, status: number, code: string): void 
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
-    imports: [AppModule.register(loadConfig(process.env))],
-    controllers: [ProtectedTestController],
+    imports: [AppModule.register(loadConfig(process.env)), ProtectedTestModule],
   })
     .overrideProvider(DISCORD_CLIENT)
     .useValue(new FakeDiscordClient())
     .compile();
   const nest = moduleRef.createNestApplication<NestExpressApplication>();
   configureApp(nest);
-  app = nest as unknown as INestApplication<App>;
+  app = nest;
   await app.init();
   prisma = app.get(PrismaService);
   pairing = app.get(PairingService);
@@ -329,5 +333,10 @@ describe('other routes (e2e)', () => {
   it('keeps the health check out of the API error format', async () => {
     const res = await request(app.getHttpServer()).get('/health').expect(200);
     expect(res.body).toEqual({ status: 'ok', database: 'up', discord: 'up' });
+  });
+
+  it('leaves errors without a contract code to Nest, e.g. an unknown /v1 route', async () => {
+    const res = await request(app.getHttpServer()).get('/v1/nope').expect(404);
+    expect(res.body).toMatchObject({ statusCode: 404 });
   });
 });

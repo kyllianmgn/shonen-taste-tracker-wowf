@@ -1,6 +1,8 @@
 import { LogLevel as NestLogLevel } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { configureApp } from './configure-app';
 import type { LogLevel } from './common/config/config';
 import { loadConfigOrExit } from './common/config/load-or-exit';
 
@@ -22,7 +24,10 @@ async function bootstrap(): Promise<void> {
     print: (message) => console.error(message),
   });
 
-  const app = await NestFactory.create(AppModule.register(config), { logger: NEST_LEVELS[config.logLevel] });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule.register(config), {
+    logger: NEST_LEVELS[config.logLevel],
+  });
+  configureApp(app);
   app.enableShutdownHooks();
   await app.listen(PORT);
 }
