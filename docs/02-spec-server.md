@@ -385,6 +385,20 @@ La liaison sert à prouver la propriété des persos et à importer prénom, nom
 | 401 / 403 sur l'API | Relancer le flux une fois ; sinon message d'erreur générique et log serveur |
 | Interaction expirée (> 15 min) | Envoyer le résultat en message privé au membre |
 
+### Comportement (S-17)
+
+Code dans `bnet/oauth/` (callback, `state`, étape 5 dans `CharacterService.linkFromBnet`) et `discord/commands/lier-battlenet.ts`.
+
+- `/lier battlenet` : option `region` (EU, US, KR, TW ; `BNET_DEFAULT_REGION` sans l'option). Comme `/lier appli`, crée la ligne `membership` du serveur. Réponse éphémère avec un bouton lien « Se connecter à Battle.net ». Le lien utilise `BNET_REDIRECT_URI`, qui doit valoir `<PUBLIC_BASE_URL>/oauth/bnet/callback`.
+- Le `state` est marqué utilisé dès l'arrivée sur le callback (`UPDATE` conditionnel) : il ne sert qu'une fois, même si la suite échoue. Page d'erreur en 400 avec un texte propre à chaque cas : inconnu, expiré, déjà utilisé.
+- Étape 5 : les persos rattachés, créés ou transférés passent en `untracked` et `bnet_verified = true` ; un perso déjà au membre garde son rôle. Un perso possédé par un autre membre **vérifié** n'est pas touché ; la réponse lui dit de contacter un admin. Sont importés : faction, `class_file` et `race_file` (ids classiques seulement, les races Skyborne restent vides), nom du royaume et ruleset ; une valeur absente n'efface jamais une donnée connue. Le niveau n'est qu'affiché : aucun snapshot n'est créé (S-18 crée les snapshots `bnet_account`).
+- Transfert « signalé aux admins » : une ligne dans `#logs-forever` de chaque serveur où l'ancien ou le nouveau propriétaire est affiché, sans notification (`allowed_mentions` vide).
+- 401 / 403 : un seul nouvel essai avec le même jeton, puis le message générique. Code refusé, Battle.net en panne ou base indisponible : même message générique, page en 502, détail dans le journal du serveur (jamais le code, le `state` ni un jeton).
+- Refus de l'autorisation sur Battle.net (`error=access_denied`) : page et message « Liaison annulée ».
+- Réponse éphémère : modifiée par le webhook de l'interaction (liste des persos avec niveau, rôle et ce qui leur est arrivé, puis les menus « Perso principal » et « Perso secondaire », 25 persos au plus). Si la modification échoue (jeton d'interaction expiré), le même contenu part en message privé.
+- Menus : « principal » fait comme `/perso principal` ; « secondaire » fait de ce perso le secondaire, l'ancien secondaire passe en `untracked`, et le principal est refusé.
+- Jeton joueur : `BNET_USER_TOKEN_SINK` le reçoit à la fin d'une liaison réussie. L'implémentation par défaut le jette ; S-18 la remplace pour le mode de base.
+
 ### Fiche publique (plus tard)
 
 Un job quotidien teste `GET /profile/wow/character/{prénom}-{nom}?namespace=profile-forever-eu` (prénom-nom en minuscules) sur un perso vérifié de niveau 10+. Dès qu'il répond 200, activer le drapeau `BNET_PUBLIC_PROFILE` : les persos sans appli sont rafraîchis toutes les 6 h depuis la fiche publique (niveau, équipement, `last_login_timestamp` affiché comme « vu pour la dernière fois »).
