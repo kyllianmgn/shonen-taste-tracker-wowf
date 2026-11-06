@@ -202,7 +202,7 @@ CREATE TABLE game_session (
   character_id BIGINT REFERENCES character,      -- connu après la 1re synchro
   started_at   TIMESTAMPTZ NOT NULL,
   ended_at     TIMESTAMPTZ,
-  end_reason   TEXT,                             -- game_closed | heartbeat_timeout
+  end_reason   TEXT,                             -- game_closed | heartbeat_timeout | character_changed
   level_start INT, level_end INT, money_start BIGINT, money_end BIGINT,
   played_start INT, played_end INT
 );
@@ -249,8 +249,8 @@ Un joueur est **en ligne** si au moins un de ses appareils non révoqués a `gam
 | Situation | Action |
 | --- | --- |
 | Battement `gameRunning: true` alors que le joueur est hors ligne | Ouvrir une `game_session` (perso = `lastCharacter` s'il est connu), émettre `session.started` |
-| Synchro pendant une session ouverte | Renseigner le perso s'il manquait ; valeurs de départ depuis le premier snapshot ou le `SESSION_START` de l'addon ; mettre à jour les valeurs de fin |
-| `SESSION_START` d'un autre perso pendant la session | Fermer la session courante, en ouvrir une nouvelle pour ce perso |
+| Synchro pendant une session ouverte | Renseigner le perso s'il manquait ; valeurs de départ depuis le dernier snapshot d'avant la session (à défaut le premier snapshot de la session), niveau depuis le `SESSION_START` de l'addon ; mettre à jour les valeurs de fin |
+| `SESSION_START` d'un autre perso pendant la session | Fermer la session courante (`character_changed`), en ouvrir une nouvelle pour ce perso |
 | Battement `gameRunning: false` et aucun autre appareil actif | Attendre 90 s une éventuelle synchro finale, puis fermer (`game_closed`) et émettre `session.ended` |
 | Plus de battement depuis le délai d'expiration | Tâche chaque minute : fermer (`heartbeat_timeout`) et émettre `session.ended` |
 
@@ -260,6 +260,18 @@ Calculé à la fermeture : durée, niveaux gagnés (`level_end - level_start`), 
 
 - Session de moins de 2 min sans aucun changement : fermée sans log (simple lancement / fermeture du jeu).
 - `hide_presence` : la session est enregistrée mais ni la pastille ni les logs de connexion ne sont affichés pour ce joueur.
+
+### Comportement (S-09)
+
+- `POST /v1/heartbeat` : garde Bearer, 2 / min par appareil, corps validé par `heartbeat.request.json` (`400 validation_failed`). Met à jour `game_running`, `app_version` et `last_seen_at` de l'appareil, puis répond `{ heartbeatIntervalSec, serverTime }`. Toutes les heures de présence sont celles de **réception** côté serveur, jamais `sentAt`. `last_seen_at` est aussi rafraîchi par toute autre requête de l'appareil (garde Bearer).
+- Machine d'état pure (`server/src/presence/presence-machine.ts`), une ligne du tableau Transitions par branche ; `PresenceService` l'alimente avec les battements, les événements internes de la synchro (`character.updated`, `event.recorded` de type `SESSION_START`, source `app` seulement : un `/sync` manuel ne touche pas aux sessions) et les ticks. Un joueur a au plus une session ouverte ; ses entrées sont traitées une à une, sous le même verrou de ligne `player` que la synchro.
+- Un battement `gameRunning: true` alors qu'une session est encore ouverte mais que le joueur est hors ligne (jeu relancé pendant l'attente de 90 s, ou battements expirés pas encore traités par la tâche) ferme d'abord l'ancienne session (`game_closed` ou `heartbeat_timeout`), puis en ouvre une nouvelle. Un battement ne change jamais le perso d'une session ; il le renseigne seulement s'il manquait.
+- Snapshots et `SESSION_START` d'avant la session (plus de 5 min avant `started_at`, marge d'horloge client) sont ignorés, comme les snapshots d'un autre perso (la synchro envoie tous les persos du compte). Découpage : la session courante se ferme à l'heure du `SESSION_START` de l'autre perso, la nouvelle s'ouvre à cette même heure.
+- Niveau de départ : le plus bas des `SESSION_START` du perso dans la session (un `/reload` en produit un nouveau), sinon celui du snapshot de départ.
+- Fermeture `game_closed` : `ended_at` = heure du battement d'arrêt ; la fermeture a lieu 90 s plus tard (minuterie en mémoire, et la tâche chaque minute en secours après un redémarrage, l'heure d'arrêt étant alors relue dans le `last_seen_at` de l'appareil arrêté). `heartbeat_timeout` : `ended_at` = dernier contact de l'appareil.
+- `end_reason` ∈ `game_closed` · `heartbeat_timeout` · `character_changed`.
+- Événements (`PRESENCE_EVENTS`, `server/src/presence/presence.events.ts`), émis après validation de la transaction : `session.started` (`sessionId`, `ownerId`, `characterId` éventuellement null, `startedAt`) et `session.ended` (mêmes champs + `endedAt`, `reason`, `recap`, `quiet`). `recap` : `durationSec`, `levelStart`, `levelEnd`, `levelsGained`, `moneyDelta` (cuivre, négatif si perte), `playedAddedSec`, `endZone`, `endSubZone`, `deaths` ; une valeur dont un bout manque vaut null. La zone de fin vient du dernier snapshot de la session ; le rendu choisit zone ou sous-zone (« fin à Darkshire » est une sous-zone).
+- `quiet` (pas de log) : moins de 2 min **et** ni niveau gagné, ni or gagné ou perdu, ni mort. Le temps de jeu ajouté seul ne compte pas comme un changement.
 
 ## Commandes Discord
 
