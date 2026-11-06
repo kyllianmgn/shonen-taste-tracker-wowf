@@ -51,6 +51,15 @@ POST /v1/devices/pair
 
 Erreurs : `404 code_unknown`, `410 code_expired`, `409 code_used`. Le serveur ne stocke que le SHA-256 du jeton.
 
+Comportement (S-07) :
+
+- `/lier appli` ne stocke que le SHA-256 du code. Il crée aussi au besoin les lignes `player`, `guild_config` (valeurs par défaut, une ligne existante n'est pas modifiée) et `membership` du serveur où la commande est lancée.
+- Un code déjà utilisé donne `409 code_used`, même s'il a aussi expiré. Le code est consommé et l'appareil créé dans une même transaction : deux envois simultanés du même code ne créent qu'un appareil.
+- Le corps est validé par `pair.request.json` (`400 validation_failed`, JSON mal formé compris). La limite de 5 / min par IP s'applique avant la validation : les essais invalides comptent aussi.
+- Garde Bearer (`DeviceAuthGuard`, réutilisable sur toute route `/v1`) : jeton absent, mal formé, inconnu, appareil révoqué ou joueur supprimé → `401 invalid_token`. Chaque appel accepté met à jour `last_seen_at`.
+- `DELETE /v1/devices/me` → `204` ; il révoque l'appareil appelant uniquement.
+- Les limites de débit sont tenues en mémoire (un seul processus), par route : fenêtre glissante d'une minute, remise à zéro au redémarrage. `Retry-After` donne en secondes le délai avant la prochaine place libre. L'IP du client est lue dans `X-Forwarded-For` en faisant confiance à un seul proxy (Caddy).
+
 ### Battement
 
 ```json
