@@ -42,7 +42,7 @@ def logged_in(wow, saved=None, **state):
 
 
 def window(wow):
-    return wow.lua.globals().ForeverTrackerSyncFrame
+    return wow.ns.syncWindow
 
 
 def shown(wow):
@@ -233,10 +233,21 @@ def test_showing_the_window_asks_for_played_time(wow):
     assert wow.wow.playedRequests == before + 1
 
 
-def test_escape_can_close_the_window(wow):
+def test_closing_the_window_otherwise_counts_as_later(wow):
+    # The template's X button just hides the frame.
     logged_in(wow)
-    special = wow.lua.globals().UISpecialFrames
-    assert "ForeverTrackerSyncFrame" in list(special.values())
+    wow.advance(15 * 60)
+    frame = window(wow)
+    frame.Hide(frame)
+    wow.advance(LATER - TICK)
+    assert not shown(wow)
+    wow.advance(TICK)
+    assert shown(wow)
+
+
+def test_window_is_not_a_global(wow):
+    logged_in(wow)
+    assert wow.lua.globals().ForeverTrackerSyncFrame is None
 
 
 # -- safe conditions ------------------------------------------------------------------

@@ -44,7 +44,8 @@ def typed(wow, line):
 
 
 def text(lines):
-    return "\n".join(lines)
+    """Chat lines as the player reads them: "||" is displayed as "|"."""
+    return "\n".join(lines).replace("||", "|")
 
 
 def settings(wow):
@@ -60,7 +61,7 @@ def events(wow, guid=GUID):
 
 def test_ftr_is_registered(wow):
     logged_in(wow)
-    assert wow.lua.globals().SLASH_FOREVERTRACKER1 == "/ftr"
+    assert wow.lua.globals().SLASH_FTR1 == "/ftr"
 
 
 @pytest.mark.parametrize("line", ["/ftr", "/ftr status", "/FTR STATUS", "/ftr   status  "])
@@ -188,7 +189,7 @@ def test_interval_applies_to_the_running_timer(wow):
     logged_in(wow)
     wow.slash("/ftr interval 10")
     wow.advance(10 * 60)
-    assert wow.lua.globals().ForeverTrackerSyncFrame.IsShown(wow.lua.globals().ForeverTrackerSyncFrame)
+    assert wow.ns.syncWindow.IsShown(wow.ns.syncWindow)
 
 
 # -- levelprompt and debug ------------------------------------------------------------
