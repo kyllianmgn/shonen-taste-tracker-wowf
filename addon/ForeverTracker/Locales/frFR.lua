@@ -53,3 +53,11 @@ L.RESET_CONFIRM = "Vider le journal d'événements de ce perso ? Les événement
 L.RESET_ACCEPT = "Vider"
 L.RESET_CANCEL = "Annuler"
 L.RESET_DONE = "Journal vidé."
+L.HELP_SHARE = "code à coller dans /sync sur Discord (sans l'appli)"
+
+-- Share.lua
+L.SHARE_HELP = "Copie ce code (Ctrl+C) et colle-le dans /sync code: sur Discord."
+L.SHARE_DROPPED_EQUIPMENT = "Code raccourci : équipement retiré."
+L.SHARE_DROPPED_REPUTATIONS = "Code raccourci : réputations retirées."
+L.SHARE_DROPPED_BOTH = "Code raccourci : équipement et réputations retirés."
+L.SHARE_TOO_LONG = "Code long (%d caractères) : si Discord le refuse, joins plutôt le fichier ForeverTracker.lua avec /sync fichier:."

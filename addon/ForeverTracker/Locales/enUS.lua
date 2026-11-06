@@ -52,4 +52,12 @@ ns.L = {
   RESET_ACCEPT = "Empty",
   RESET_CANCEL = "Cancel",
   RESET_DONE = "Journal emptied.",
+  HELP_SHARE = "code to paste into /sync on Discord (without the app)",
+
+  -- Share.lua: /ftr share window
+  SHARE_HELP = "Copy this code (Ctrl+C) and paste it into /sync code: on Discord.",
+  SHARE_DROPPED_EQUIPMENT = "Code shortened: equipment left out.",
+  SHARE_DROPPED_REPUTATIONS = "Code shortened: reputations left out.",
+  SHARE_DROPPED_BOTH = "Code shortened: equipment and reputations left out.",
+  SHARE_TOO_LONG = "Long code (%d characters): if Discord refuses it, attach the ForeverTracker.lua file with /sync fichier: instead.",
 }

@@ -157,4 +157,6 @@ ns.RegisterCommand("reset", function()
   StaticPopup_Show(RESET_POPUP)
 end, L.HELP_RESET)
 
+ns.RegisterCommand("share", ns.ShowShare, L.HELP_SHARE)
+
 ns.RegisterCommand("help", printHelp, L.HELP_HELP)
