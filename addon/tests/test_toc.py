@@ -13,6 +13,8 @@ Core.lua
 Collect.lua
 Journal.lua
 Sync.lua
+libs/LibDeflate/LibDeflate.lua
+Share.lua
 Commands.lua
 Bindings.xml
 """

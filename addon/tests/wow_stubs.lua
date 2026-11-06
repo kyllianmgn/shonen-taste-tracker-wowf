@@ -399,6 +399,22 @@ function Frame:StopMovingOrSizing() end
 function Frame:SetJustifyH() end
 function Frame:SetWordWrap() end
 function Frame:SetColorTexture() end
+function Frame:SetTextColor() end
+function Frame:SetFontObject() end
+function Frame:SetScrollChild(child) self.scrollChild = child end
+
+-- EditBox: focus and selection are recorded for the tests.
+function Frame:SetMultiLine(multiLine) self.multiLine = multiLine end
+function Frame:SetAutoFocus(autoFocus) self.autoFocus = autoFocus end
+function Frame:SetMaxLetters(maxLetters) self.maxLetters = maxLetters end
+function Frame:SetCursorPosition(position) self.cursor = position end
+function Frame:SetFocus() self.focused = true end
+function Frame:ClearFocus() self.focused = false end
+function Frame:HasFocus() return self.focused == true end
+-- Without arguments the whole text is selected, like the client.
+function Frame:HighlightText(first, last)
+  self.highlighted = { first = first or 0, last = last or -1 }
+end
 
 -- Font strings and textures: regions that never receive events.
 local function newRegion(regionType, parent)
@@ -455,6 +471,20 @@ function WowTest.click(frame, button)
   if frame.frameType == "CheckButton" then frame.checked = not frame.checked end
   local handler = frame.scripts.OnClick
   if handler then asHardwareEvent(handler, frame, button or "LeftButton", false) end
+end
+
+-- Simulate the player typing in an EditBox: replaces its text, then runs
+-- OnTextChanged with userInput = true, like the client.
+function WowTest.typeText(editBox, text)
+  editBox.text = text
+  local handler = editBox.scripts.OnTextChanged
+  if handler then asHardwareEvent(handler, editBox, true) end
+end
+
+-- Simulate the Escape key in a focused EditBox.
+function WowTest.pressEscape(editBox)
+  local handler = editBox.scripts.OnEscapePressed
+  if handler then asHardwareEvent(handler, editBox) end
 end
 
 -- Simulate a key bound in Bindings.xml: runs the <Binding> body (Lua source)
