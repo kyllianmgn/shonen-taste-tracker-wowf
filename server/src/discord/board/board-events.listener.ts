@@ -1,18 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { SYNC_EVENTS, type CharacterUpdatedEvent } from '../../ingest/sync/sync.events';
+import { PRESENCE_EVENTS, type SessionEndedEvent, type SessionStartedEvent } from '../../presence/presence.events';
 import { BoardPublisher } from './board-publisher';
-
-/** Names of the presence module's events (docs/02 « Modules »). */
-export const SESSION_EVENTS = {
-  started: 'session.started',
-  ended: 'session.ended',
-} as const;
-
-/** The part of a session.* event the board needs: whose presence changed. */
-export interface SessionEventLike {
-  ownerId?: string;
-}
 
 /** Marks the boards to redraw when a shown character or a player's presence changes. */
 @Injectable()
@@ -27,21 +17,17 @@ export class BoardEventsListener {
     await this.markPlayer(event.ownerId);
   }
 
-  @OnEvent(SESSION_EVENTS.started)
-  async onSessionStarted(event: SessionEventLike): Promise<void> {
+  @OnEvent(PRESENCE_EVENTS.sessionStarted)
+  async onSessionStarted(event: SessionStartedEvent): Promise<void> {
     await this.markPlayer(event.ownerId);
   }
 
-  @OnEvent(SESSION_EVENTS.ended)
-  async onSessionEnded(event: SessionEventLike): Promise<void> {
+  @OnEvent(PRESENCE_EVENTS.sessionEnded)
+  async onSessionEnded(event: SessionEndedEvent): Promise<void> {
     await this.markPlayer(event.ownerId);
   }
 
-  private async markPlayer(ownerId: string | undefined): Promise<void> {
-    if (!ownerId) {
-      this.publisher.markAllDirty();
-      return;
-    }
+  private async markPlayer(ownerId: string): Promise<void> {
     try {
       await this.publisher.markPlayerDirty(ownerId);
     } catch (error) {

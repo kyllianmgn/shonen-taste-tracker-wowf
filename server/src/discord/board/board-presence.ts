@@ -1,3 +1,4 @@
+import { isOnline } from '../../presence/presence-machine';
 import type { BoardPlayer } from '../render/board';
 
 export interface PresenceDevice {
@@ -5,9 +6,6 @@ export interface PresenceDevice {
   lastSeenAt: Date | null;
   revokedAt: Date | null;
 }
-
-/** Heartbeats older than this many intervals mean the player is gone (docs/02 « Présence et sessions »). */
-const ONLINE_INTERVALS = 2.5;
 
 /**
  * Online = a non-revoked device runs the game and sent a heartbeat less than 2.5 intervals ago.
@@ -20,10 +18,11 @@ export function boardPresence(
   heartbeatIntervalSec: number,
   latestDataAt: Date | null = null,
 ): BoardPlayer['presence'] {
-  const cutoff = now.getTime() - ONLINE_INTERVALS * heartbeatIntervalSec * 1000;
-  const online = devices.some(
-    (d) => d.revokedAt === null && d.gameRunning && d.lastSeenAt !== null && d.lastSeenAt.getTime() > cutoff,
-  );
+  // Same rule as the presence engine (S-09), on non-revoked devices.
+  const active = devices
+    .filter((d) => d.revokedAt === null)
+    .map((d, i) => ({ id: String(i), gameRunning: d.gameRunning, lastSeenAt: d.lastSeenAt?.getTime() ?? null }));
+  const online = isOnline(active, now.getTime(), { heartbeatIntervalSec });
   const seen = [...devices.map((d) => d.lastSeenAt), latestDataAt].map((at) => at?.getTime() ?? -Infinity);
   const latest = Math.max(-Infinity, ...seen);
   return { online, lastSeenAt: Number.isFinite(latest) ? new Date(latest) : null };

@@ -1,13 +1,14 @@
 import type { CharacterUpdatedEvent } from '../../ingest/sync/sync.events';
+import type { SessionEndedEvent, SessionStartedEvent } from '../../presence/presence.events';
 import { BoardEventsListener } from './board-events.listener';
 import type { BoardPublisher } from './board-publisher';
 
 describe('BoardEventsListener', () => {
-  let publisher: { markPlayerDirty: jest.Mock; markAllDirty: jest.Mock };
+  let publisher: { markPlayerDirty: jest.Mock };
   let listener: BoardEventsListener;
 
   beforeEach(() => {
-    publisher = { markPlayerDirty: jest.fn().mockResolvedValue(undefined), markAllDirty: jest.fn() };
+    publisher = { markPlayerDirty: jest.fn().mockResolvedValue(undefined) };
     listener = new BoardEventsListener(publisher as unknown as BoardPublisher);
   });
 
@@ -27,21 +28,21 @@ describe('BoardEventsListener', () => {
     expect(publisher.markPlayerDirty).not.toHaveBeenCalled();
   });
 
-  it.each(['onSessionStarted', 'onSessionEnded'] as const)('%s marks the guilds of the session owner', async (method) => {
-    await listener[method]({ ownerId: 'u2' });
+  it('marks the guilds of a player whose session started', async () => {
+    await listener.onSessionStarted({ sessionId: 1n, ownerId: 'u2', characterId: null, startedAt: new Date() });
 
     expect(publisher.markPlayerDirty).toHaveBeenCalledWith('u2');
   });
 
-  it('marks every board when a session event has no owner', async () => {
-    await listener.onSessionEnded({});
+  it('marks the guilds of a player whose session ended, quiet or not', async () => {
+    await listener.onSessionEnded({ sessionId: 1n, ownerId: 'u4', quiet: true } as SessionEndedEvent);
 
-    expect(publisher.markAllDirty).toHaveBeenCalled();
+    expect(publisher.markPlayerDirty).toHaveBeenCalledWith('u4');
   });
 
   it('never throws, even when the lookup fails', async () => {
     publisher.markPlayerDirty.mockRejectedValue(new Error('db down'));
 
-    await expect(listener.onSessionStarted({ ownerId: 'u3' })).resolves.toBeUndefined();
+    await expect(listener.onSessionStarted({ ownerId: 'u3' } as SessionStartedEvent)).resolves.toBeUndefined();
   });
 });
