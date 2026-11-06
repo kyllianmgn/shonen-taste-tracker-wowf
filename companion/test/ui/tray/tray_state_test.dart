@@ -121,4 +121,13 @@ void main() {
       contains("réappaire l'appli avec /lier appli"),
     );
   });
+  test('an available update is remembered without changing colour or summary', () {
+    final s = paired.apply(const GameStarted());
+    final u = s.apply(const UpdateAvailable('1.2.0'));
+    expect(u.updateVersion, '1.2.0');
+    expect(u.color, s.color);
+    expect(u.summary, s.summary);
+    expect(u.apply(const SendFailed()).updateVersion, '1.2.0');
+    expect(const TrayState().updateVersion, isNull);
+  });
 }
