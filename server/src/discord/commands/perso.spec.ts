@@ -1,10 +1,14 @@
 import { MessageFlags } from 'discord.js';
+import { OauthStateService } from '../../bnet/oauth/oauth-state.service';
+import { APP_CONFIG } from '../../common/config/config.constants';
 import { CharacterService } from '../../core/characters/character.service';
+import { PlayerModeService } from '../../core/players/player-mode.service';
+import { renderLierBattlenetReply } from '../bnet-link/bnet-link-replies';
 import type { OwnedCharacter } from '../../core/characters/character.types';
 import { MSG } from '../messages';
-import { addReply, listReply, PERSO_MSG, setMainReply, untrackReply } from '../perso/perso-replies';
+import { addReply, listMessage, listReply, PERSO_IDS, PERSO_MSG, setMainReply, untrackReply } from '../perso/perso-replies';
 import type { CommandContext, CommandHandler } from '../registry/command-handler';
-import { handlers } from './perso';
+import { components, handlers } from './perso';
 
 const USER = '300000000000000001';
 const GUILD = '600000000000000001';
@@ -38,11 +42,20 @@ function interaction(strings: Record<string, string | null> = {}, opts: { inGuil
   };
 }
 
-function context(service: Partial<Record<keyof CharacterService, jest.Mock>>): CommandContext {
+function context(
+  service: Partial<Record<keyof CharacterService, jest.Mock>>,
+  extra: { bnetRelinkRegion?: jest.Mock; issue?: jest.Mock } = {},
+): CommandContext {
+  const providers = new Map<unknown, unknown>([
+    [CharacterService, service],
+    [PlayerModeService, { bnetRelinkRegion: extra.bnetRelinkRegion ?? jest.fn().mockResolvedValue(null) }],
+    [OauthStateService, { issue: extra.issue }],
+    [APP_CONFIG, { bnetDefaultRegion: 'eu' }],
+  ]);
   return {
     get: <T>(token: unknown) => {
-      if (token !== CharacterService) throw new Error('unexpected provider');
-      return service as unknown as T;
+      if (!providers.has(token)) throw new Error('unexpected provider');
+      return providers.get(token) as T;
     },
   };
 }
@@ -170,6 +183,53 @@ describe('/perso commands', () => {
 
       expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
       expect(i.editReply).toHaveBeenCalledWith({ content: listReply([DAVINA, BOREK]) });
+    });
+
+    it('adds the « Relier Battle.net » button when the base-mode token has expired', async () => {
+      const i = interaction();
+      const bnetRelinkRegion = jest.fn().mockResolvedValue('eu');
+
+      await execute(handler('perso liste'), i, context({ list: jest.fn().mockResolvedValue([DAVINA]) }, { bnetRelinkRegion }));
+
+      expect(bnetRelinkRegion).toHaveBeenCalledWith(USER);
+      expect(i.editReply).toHaveBeenCalledWith(listMessage([DAVINA], true));
+    });
+  });
+
+  describe('« Relier Battle.net » button', () => {
+    const relink = components.find((c) => c.customId === PERSO_IDS.relinkBnet)!;
+    const button = (inGuild = true) => ({ ...interaction({}, { inGuild }), token: 'button-token' });
+    const press = (i: ReturnType<typeof button>, ctx: CommandContext) =>
+      relink.execute(i as unknown as Parameters<typeof relink.execute>[0], ctx);
+
+    it('starts /lier battlenet in the region of the expired link, tied to the button interaction', async () => {
+      const expiresAt = new Date('2026-11-06T12:10:00Z');
+      const issue = jest.fn().mockResolvedValue({ url: 'https://oauth.battle.net/authorize?state=s', expiresAt });
+      const i = button();
+
+      await press(i, context({}, { issue, bnetRelinkRegion: jest.fn().mockResolvedValue('us') }));
+
+      expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
+      expect(issue).toHaveBeenCalledWith({ ownerId: USER, guildId: GUILD, region: 'us', interactionToken: 'button-token' });
+      expect(i.editReply).toHaveBeenCalledWith(renderLierBattlenetReply('https://oauth.battle.net/authorize?state=s', 'us', expiresAt));
+    });
+
+    it('falls back to BNET_DEFAULT_REGION when no expired link is known any more', async () => {
+      const issue = jest.fn().mockResolvedValue({ url: 'https://x', expiresAt: new Date() });
+
+      await press(button(), context({}, { issue }));
+
+      expect(issue).toHaveBeenCalledWith(expect.objectContaining({ region: 'eu' }));
+    });
+
+    it('refuses outside a server', async () => {
+      const issue = jest.fn();
+      const i = button(false);
+
+      await press(i, context({}, { issue }));
+
+      expect(i.reply).toHaveBeenCalledWith({ content: MSG.guildOnly, flags: MessageFlags.Ephemeral });
+      expect(issue).not.toHaveBeenCalled();
     });
   });
 });

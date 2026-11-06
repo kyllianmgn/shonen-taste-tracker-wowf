@@ -11,6 +11,7 @@ import { AppModule } from '../src/app.module';
 import { NO_FOREVER_CHARACTER_HELP } from '../src/bnet/oauth/link-outcome';
 import { OAUTH_STATE_TTL_SEC } from '../src/bnet/oauth/oauth-state.service';
 import { loadConfig } from '../src/common/config/config';
+import { decryptToken } from '../src/common/crypto/token-cipher';
 import { PrismaService } from '../src/common/prisma/prisma.service';
 import { configureApp } from '../src/configure-app';
 import { BNET_LINK_MSG, BNET_SELECT_IDS } from '../src/discord/bnet-link/bnet-link-replies';
@@ -198,8 +199,39 @@ describe('GET /oauth/bnet/callback (e2e)', () => {
     expect(rows.map((r) => r.components[0].custom_id)).toEqual([BNET_SELECT_IDS.main, BNET_SELECT_IDS.alt]);
 
     expect((await prisma.oauthState.findFirstOrThrow()).usedAt).toBeInstanceOf(Date);
-    // App mode (S-17): the player token is thrown away at the end of the callback.
+    // Base mode (no device): the player token is kept AES-256-GCM encrypted until it expires (S-18).
+    const stored = await prisma.bnetToken.findUniqueOrThrow({ where: { ownerId: USER } });
+    expect(stored.region).toBe('eu');
+    expect(Buffer.from(stored.tokenEncrypted).includes(Buffer.from('test-user-token'))).toBe(false);
+    expect(decryptToken(Buffer.from(process.env.TOKEN_ENC_KEY!, 'base64'), Buffer.from(stored.tokenEncrypted))).toBe('test-user-token');
+    expect(Math.abs(stored.expiresAt.getTime() - (Date.now() + 86_400_000))).toBeLessThan(60_000);
+  });
+
+  it('app mode (a device seen in the last 7 days) throws the player token away', async () => {
+    const state = await startLink();
+    await prisma.device.create({ data: { ownerId: USER, tokenSha256: sha256Hex('device'), lastSeenAt: new Date() } });
+    mockCodeExchange();
+    mockProfile();
+
+    await callback({ code: 'the-code', state }).expect(200);
+
     expect(await prisma.bnetToken.count()).toBe(0);
+  });
+
+  it('a new link in base mode replaces the stored token', async () => {
+    await prisma.player.create({ data: { discordUserId: USER } });
+    await prisma.bnetToken.create({
+      data: { ownerId: USER, region: 'us', tokenEncrypted: Buffer.from('old'), expiresAt: new Date(Date.now() + 60_000) },
+    });
+    const state = await startLink();
+    mockCodeExchange();
+    mockProfile();
+
+    await callback({ code: 'the-code', state }).expect(200);
+
+    const stored = await prisma.bnetToken.findUniqueOrThrow({ where: { ownerId: USER } });
+    expect(stored.region).toBe('eu');
+    expect(decryptToken(Buffer.from(process.env.TOKEN_ENC_KEY!, 'base64'), Buffer.from(stored.tokenEncrypted))).toBe('test-user-token');
   });
 
   it('the « secondaire » menu then makes the chosen character alt', async () => {
