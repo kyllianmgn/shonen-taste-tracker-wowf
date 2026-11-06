@@ -1,0 +1,6 @@
+<Bindings>
+  <!-- Label: BINDING_NAME_FOREVERTRACKER_SYNC, set in Sync.lua. -->
+  <Binding name="FOREVERTRACKER_SYNC" header="FOREVERTRACKER" category="ADDONS">
+    ForeverTracker_SyncNow()
+  </Binding>
+</Bindings>

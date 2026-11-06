@@ -87,11 +87,16 @@ end
 -- Lifecycle
 -- ---------------------------------------------------------------------------
 
+-- Print a chat message for the player.
+function ns.Print(message)
+  print("|cff33ff99ForeverTracker|r: " .. message)
+end
+
 -- Print a chat message only when settings.debug is on.
 function ns.Debug(message)
   local settings = ns.db and ns.db.settings
   if not (settings and settings.debug) then return end
-  print("|cff33ff99ForeverTracker|r: " .. message)
+  ns.Print(message)
 end
 
 ns.On("ADDON_LOADED", function(_, loadedName)
