@@ -365,6 +365,16 @@ Debounce : tout `character.updated`, `session.started` ou `session.ended` marque
 
 Reprise : erreur Discord `10008` (message inconnu) → republier et mémoriser le nouvel id ; `10003` (salon inconnu) ou `50013` (permissions manquantes) → désactiver le tableau et prévenir dans le salon logs. Au démarrage du service, redessiner tous les tableaux.
 
+Comportement (S-12) :
+
+- `BoardPublisher` (`server/src/discord/board/`) garde en mémoire, par serveur : marqué ou non, heure du dernier appel à Discord, hash du dernier rendu envoyé et ids visés. Après un redémarrage, tout est perdu et chaque tableau est redessiné une fois (tâche `BoardRedrawJob`, `server/src/jobs/`, toutes les 5 s).
+- Hash : rendu recalculé avec une heure fixe, pour que « Mis à jour <t:…:R> » seul ne déclenche jamais d'édition. Un rendu identique ne compte pas comme une édition (le délai de `BOARD_MIN_EDIT_INTERVAL_SEC` ne repart pas).
+- Marquage : `character.updated` (sauf persos `untracked`), `session.started` et `session.ended` marquent les serveurs ayant un tableau où le joueur (`ownerId` de l'événement) a une appartenance ; un événement `session.*` sans `ownerId` marque tous les tableaux. `/setup` réussi oublie le hash du serveur, pour remplacer le tableau provisoire au prochain passage.
+- Messages : les messages existants sont édités dans l'ordre, ceux en trop supprimés (depuis la fin), les manquants créés ; `board_message_ids` est réécrit seulement s'il change, même après un échec en cours de route. Un `10008` sur le message n°i supprime les messages suivants et republie à partir de i, pour garder l'ordre ; un `10008` à la suppression est ignoré.
+- Désactiver le tableau = `board_channel_id` à null et `board_message_ids` vidé (le reste de `guild_config` est gardé) ; plus aucun envoi jusqu'au prochain `/setup`. Message dans le salon logs (sans mention), s'il existe.
+- Autre erreur (réseau, 5xx…) : le serveur reste marqué et l'essai suivant attend le délai minimum. Les `429` sont gérés par la file REST de discord.js.
+- Présence sur le tableau : en ligne si un appareil non révoqué a `game_running` et un battement de moins de 2,5 × `HEARTBEAT_INTERVAL_SEC` ; « vu » = dernier battement de tous ses appareils.
+
 ### Logs
 
 | Événement | Message | Condition |
