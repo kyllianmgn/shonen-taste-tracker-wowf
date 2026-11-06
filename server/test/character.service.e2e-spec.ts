@@ -290,6 +290,97 @@ describe('CharacterService (e2e)', () => {
     });
   });
 
+  describe('setAlt', () => {
+    it('makes an untracked character alt when the slot is free', async () => {
+      await seed(ME, 'Davina', 'Asaria', 'main');
+      const borek = await seed(ME, 'Borek', 'Tanu', 'untracked');
+
+      await expect(service.setAlt(ME, borek.id)).resolves.toMatchObject({ status: 'set', replaced: null });
+      await expect(stored('Borek', 'Tanu')).resolves.toMatchObject({ role: 'alt' });
+      await expect(stored('Davina', 'Asaria')).resolves.toMatchObject({ role: 'main' });
+    });
+
+    it('replaces the former alt, which becomes untracked', async () => {
+      await seed(ME, 'Davina', 'Asaria', 'alt');
+      const borek = await seed(ME, 'Borek', 'Tanu', 'untracked');
+
+      const result = await service.setAlt(ME, borek.id);
+
+      expect(result).toMatchObject({ status: 'set', replaced: { firstName: 'Davina' } });
+      await expect(stored('Davina', 'Asaria')).resolves.toMatchObject({ role: 'untracked', ownerId: ME });
+      await expect(stored('Borek', 'Tanu')).resolves.toMatchObject({ role: 'alt' });
+    });
+
+    it('refuses the main and says when the character is already alt', async () => {
+      const davina = await seed(ME, 'Davina', 'Asaria', 'main');
+      const borek = await seed(ME, 'Borek', 'Tanu', 'alt');
+
+      await expect(service.setAlt(ME, davina.id)).resolves.toMatchObject({ status: 'is_main' });
+      await expect(service.setAlt(ME, borek.id)).resolves.toMatchObject({ status: 'already_alt' });
+      await expect(stored('Davina', 'Asaria')).resolves.toMatchObject({ role: 'main' });
+    });
+
+    it('does not find another member’s character', async () => {
+      const theirs = await seed(OTHER, 'Celia', 'Morn', 'untracked');
+
+      await expect(service.setAlt(ME, theirs.id)).resolves.toEqual({ status: 'not_found' });
+    });
+  });
+
+  describe('linkFromBnet', () => {
+    const data = (firstName: string, surname: string) => ({
+      firstName,
+      surname,
+      classFile: 'PRIEST',
+      raceFile: null,
+      faction: 'Horde' as const,
+      realmName: 'Royaume',
+      ruleset: 'NORMAL',
+    });
+
+    it('verifies, claims, creates, transfers or leaves each character, and keeps stored names and roles', async () => {
+      await seed(ME, 'Davina', 'Asaria', 'main');
+      await seed(null, 'Orphe', 'Lin', null);
+      await seed(OTHER, 'Mira', 'Sol', 'alt');
+      const verified = await seed(OTHER, 'Zed', 'Vox', 'main');
+      await prisma.character.update({ where: { id: verified.id }, data: { bnetVerified: true } });
+
+      const entries = await service.linkFromBnet({
+        ownerId: ME,
+        region: 'eu',
+        characters: [data('DAVINA', 'asaria'), data('Orphe', 'Lin'), data('Kael', 'Ombre'), data('Mira', 'Sol'), data('Zed', 'Vox')],
+      });
+
+      expect(entries.map((e) => [e.character.firstName, e.outcome, e.role, e.previousOwnerId ?? null])).toEqual([
+        ['Davina', 'verified', 'main', null],
+        ['Orphe', 'claimed', 'untracked', null],
+        ['Kael', 'created', 'untracked', null],
+        ['Mira', 'transferred', 'untracked', OTHER],
+        ['Zed', 'owned_by_other', null, null],
+      ]);
+      await expect(stored('Davina', 'Asaria')).resolves.toMatchObject({
+        role: 'main',
+        bnetVerified: true,
+        classFile: 'PRIEST',
+        faction: 'Horde',
+        realmName: 'Royaume',
+        ruleset: 'NORMAL',
+      });
+      await expect(stored('Mira', 'Sol')).resolves.toMatchObject({ ownerId: ME, role: 'untracked', bnetVerified: true });
+      await expect(stored('Zed', 'Vox')).resolves.toMatchObject({ ownerId: OTHER, role: 'main', classFile: null });
+      await expect(stored('Kael', 'Ombre')).resolves.toMatchObject({ ownerId: ME, bnetVerified: true });
+    });
+
+    it('never overwrites known data with null', async () => {
+      const davina = await seed(ME, 'Davina', 'Asaria', 'main');
+      await prisma.character.update({ where: { id: davina.id }, data: { raceFile: 'Troll' } });
+
+      await service.linkFromBnet({ ownerId: ME, region: 'eu', characters: [data('Davina', 'Asaria')] });
+
+      await expect(stored('Davina', 'Asaria')).resolves.toMatchObject({ raceFile: 'Troll' });
+    });
+  });
+
   describe('untrack', () => {
     it('moves the character to untracked, keeps its owner and frees the role', async () => {
       const davina = await add('Davina', 'Asaria');

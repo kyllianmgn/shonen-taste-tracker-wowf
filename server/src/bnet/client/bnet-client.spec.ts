@@ -274,6 +274,52 @@ describe('BnetClient', () => {
     });
   });
 
+  describe('exchangeAuthorizationCode', () => {
+    const REDIRECT = 'https://ft.example.org/oauth/bnet/callback';
+
+    it('posts the code with Basic client auth and returns the player token and its lifetime', async () => {
+      nock(OAUTH, { reqheaders: { authorization: BASIC, 'content-type': 'application/x-www-form-urlencoded' } })
+        .post('/token', { grant_type: 'authorization_code', code: 'the-code', redirect_uri: REDIRECT })
+        .reply(200, fixture('token.json'));
+
+      await expect(client.exchangeAuthorizationCode('the-code', REDIRECT)).resolves.toEqual({
+        accessToken: 'test-user-token',
+        expiresInSec: 86_400,
+      });
+    });
+
+    it('throws BnetAuthError with the status, never the code, when Battle.net refuses it', async () => {
+      nock(OAUTH).post('/token').reply(400, { error: 'invalid_grant' });
+
+      const error = await client.exchangeAuthorizationCode('secret-code', REDIRECT).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(BnetAuthError);
+      expect(error).toMatchObject({ status: 400 });
+      expect((error as Error).message).not.toContain('secret-code');
+    });
+
+    it('throws BnetAuthError on a malformed token response', async () => {
+      nock(OAUTH).post('/token').reply(200, { token_type: 'bearer' });
+
+      await expect(client.exchangeAuthorizationCode('c', REDIRECT)).rejects.toBeInstanceOf(BnetAuthError);
+    });
+
+    it('does not replace the cached app token', async () => {
+      mockAppToken('app-token-1');
+      nock(EU).get('/data/wow/realm/6855').query(true).reply(200, fixture('realm-6855.json'));
+      nock(OAUTH).post('/token', /authorization_code/).reply(200, fixture('token.json'));
+      nock(EU)
+        .get('/data/wow/realm/1')
+        .query(true)
+        .matchHeader('authorization', 'Bearer app-token-1')
+        .reply(200, { ...fixture('realm-6855.json'), id: 1 });
+
+      await client.getRealm('eu', 6855);
+      await client.exchangeAuthorizationCode('c', REDIRECT);
+      await client.getRealm('eu', 1);
+    });
+  });
+
   describe('429', () => {
     it('waits for Retry-After, then retries', async () => {
       mockAppToken();

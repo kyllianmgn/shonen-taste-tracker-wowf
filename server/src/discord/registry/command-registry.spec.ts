@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { MessageFlags, type Interaction } from 'discord.js';
 import { MSG } from '../messages';
 import type { CommandContext, CommandHandler } from './command-handler';
-import { COMMANDS_DIR, CommandRegistry, isHandlerFile, loadCommandHandlers } from './command-registry';
+import { COMMANDS_DIR, CommandRegistry, isHandlerFile, loadCommandHandlers, loadComponentHandlers } from './command-registry';
 
 const ctx: CommandContext = { get: () => undefined as never };
 
@@ -150,8 +150,64 @@ describe('CommandRegistry', () => {
 
   it('ignores other interactions', async () => {
     const registry = new CommandRegistry([]);
-    const other = { isChatInputCommand: () => false, isAutocomplete: () => false };
+    const other = { isChatInputCommand: () => false, isAutocomplete: () => false, isMessageComponent: () => false };
 
     await expect(registry.handle(asInteraction(other), ctx)).resolves.toBeUndefined();
+  });
+});
+
+describe('CommandRegistry message components', () => {
+  function component(customId: string) {
+    return {
+      customId,
+      deferred: false,
+      replied: false,
+      isChatInputCommand: () => false,
+      isAutocomplete: () => false,
+      isMessageComponent: () => true,
+      reply: jest.fn().mockResolvedValue(undefined),
+      editReply: jest.fn().mockResolvedValue(undefined),
+      followUp: jest.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  it('routes a component to its handler by custom id', async () => {
+    const execute = jest.fn().mockResolvedValue(undefined);
+    const registry = new CommandRegistry([], undefined, [{ customId: 'bnet-link:main', execute }]);
+    const interaction = component('bnet-link:main');
+
+    await registry.handle(asInteraction(interaction), ctx);
+
+    expect(execute).toHaveBeenCalledWith(interaction, ctx);
+  });
+
+  it('answers ephemerally that the menu is no longer available for an unknown custom id', async () => {
+    const registry = new CommandRegistry([]);
+    const interaction = component('old:menu');
+
+    await registry.handle(asInteraction(interaction), ctx);
+
+    expect(interaction.reply).toHaveBeenCalledWith({ content: MSG.componentExpired, flags: MessageFlags.Ephemeral });
+  });
+
+  it('answers a generic ephemeral error when a component handler throws', async () => {
+    const registry = new CommandRegistry([], undefined, [
+      { customId: 'x', execute: jest.fn().mockRejectedValue(new Error('boom')) },
+    ]);
+    const interaction = component('x');
+
+    await registry.handle(asInteraction(interaction), ctx);
+
+    expect(interaction.reply).toHaveBeenCalledWith({ content: MSG.genericError, flags: MessageFlags.Ephemeral });
+  });
+
+  it('rejects two component handlers for the same custom id', () => {
+    const h = { customId: 'x', execute: jest.fn() };
+    expect(() => new CommandRegistry([], undefined, [h, { ...h }])).toThrow(/x/);
+  });
+
+  it('loads the component handlers of commands/, the Battle.net menus included', () => {
+    const ids = loadComponentHandlers(COMMANDS_DIR).map((c) => c.customId);
+    expect(ids).toEqual(expect.arrayContaining(['bnet-link:main', 'bnet-link:alt']));
   });
 });

@@ -123,10 +123,17 @@ describe('slash command definitions (docs/02 « Commandes Discord »)', () => {
   });
 
   describe('player commands', () => {
-    it('/lier has the appli and battlenet subcommands without options', () => {
+    it('/lier has the appli and battlenet subcommands', () => {
       expect(shape(byName('lier').options as Option[])).toEqual([
         { name: 'appli', type: T.Subcommand, required: false },
         { name: 'battlenet', type: T.Subcommand, required: false },
+      ]);
+    });
+
+    it('/lier appli takes no option; /lier battlenet takes an optional region (EU, US, KR, TW)', () => {
+      expect(sub('lier', 'appli').options ?? []).toEqual([]);
+      expect(shape(sub('lier', 'battlenet').options)).toEqual([
+        { name: 'region', type: T.String, required: false, choices: REGION_CHOICES },
       ]);
     });
 
