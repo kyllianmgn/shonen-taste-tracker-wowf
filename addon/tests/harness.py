@@ -143,3 +143,39 @@ class WowGame:
 
     def reload_calls(self) -> list[dict[str, Any]]:
         return lua_to_python(self.wow.reloadCalls) or []
+
+    def chat(self) -> list[str]:
+        """Lines printed to the chat frame so far."""
+        return lua_to_python(self.wow.chat) or []
+
+    def popups(self) -> list[str]:
+        """Names of the StaticPopup dialogs currently shown."""
+        return lua_to_python(self.wow.popups) or []
+
+    # -- input --------------------------------------------------------------
+
+    def slash(self, line: str) -> None:
+        """Type a slash command, e.g. wow.slash("/ftr sync")."""
+        if not self.wow.slash(line):
+            raise AssertionError(f"no handler for {line!r}")
+
+    def click(self, frame: Any) -> None:
+        self.wow.click(frame)
+
+    def press_binding(self, name: str) -> None:
+        """Press the key bound to <Binding name="..."> in Bindings.xml."""
+        self.wow.pressBinding(binding_body(name))
+
+
+BINDINGS_PATH = ADDON_DIR / "Bindings.xml"
+
+
+def binding_body(name: str, path: Path = BINDINGS_PATH) -> str:
+    """Lua source of a <Binding> in Bindings.xml (the client runs it on key press)."""
+    import xml.etree.ElementTree as ET
+
+    root = ET.parse(path).getroot()
+    for binding in root.iter("Binding"):
+        if binding.get("name") == name:
+            return binding.text or ""
+    raise KeyError(name)

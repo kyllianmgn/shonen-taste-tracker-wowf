@@ -48,7 +48,10 @@ local function defaultState()
     inGuild = nil,      -- IsInGuild(); nil = derived from state.guild
     onTaxi = false,
     deadOrGhost = false,
-    combatLockdown = false,
+    combatLockdown = false, -- InCombatLockdown()
+    inCombat = false,       -- UnitAffectingCombat("player")
+    casting = false,        -- UnitCastingInfo("player") returns a spell
+    channeling = false,     -- UnitChannelInfo("player") returns a spell
     -- "à vérifier" APIs (see the section of the same name below)
     avgItemLevel = 22.6,
     avgItemLevelEquipped = 21.4,
@@ -192,6 +195,18 @@ end
 function UnitOnTaxi(unit) return unit == "player" and WowTest.state.onTaxi or false end
 function UnitIsDeadOrGhost(unit) return unit == "player" and WowTest.state.deadOrGhost or false end
 function InCombatLockdown() return WowTest.state.combatLockdown end
+function UnitAffectingCombat(unit) return unit == "player" and WowTest.state.inCombat or false end
+
+-- name, displayName, texture, startTimeMs, endTimeMs, ... (nil when not casting)
+function UnitCastingInfo(unit)
+  if unit ~= "player" or not WowTest.state.casting then return nil end
+  return "Soins", "Soins", 135915, 0, 2500
+end
+
+function UnitChannelInfo(unit)
+  if unit ~= "player" or not WowTest.state.channeling then return nil end
+  return "Fouet mental", "Fouet mental", 136208, 0, 3000
+end
 
 -- ---------------------------------------------------------------------------
 -- "À vérifier" APIs: present by default; tests remove or break them with
@@ -358,7 +373,45 @@ function Frame:Hide()
   end
 end
 function Frame:IsShown() return self.shown end
+function Frame:IsVisible() return self.shown and (not self.parent or self.parent:IsVisible()) end
 function Frame:GetName() return self.name end
+function Frame:GetParent() return self.parent end
+
+-- Layout and look: recorded when useful to a test, otherwise no-ops.
+function Frame:SetText(text) self.text = text end
+function Frame:GetText() return self.text end
+function Frame:SetChecked(checked) self.checked = checked and true or false end
+function Frame:GetChecked() return self.checked == true end
+function Frame:SetSize(w, h) self.width, self.height = w, h end
+function Frame:SetWidth(w) self.width = w end
+function Frame:SetHeight(h) self.height = h end
+function Frame:SetPoint(...) end
+function Frame:ClearAllPoints() end
+function Frame:SetAllPoints(...) end
+function Frame:SetFrameStrata(strata) self.strata = strata end
+function Frame:SetMovable(movable) self.movable = movable end
+function Frame:SetClampedToScreen() end
+function Frame:SetToplevel() end
+function Frame:EnableMouse() end
+function Frame:RegisterForDrag() end
+function Frame:StartMoving() end
+function Frame:StopMovingOrSizing() end
+function Frame:SetJustifyH() end
+function Frame:SetWordWrap() end
+function Frame:SetColorTexture() end
+
+-- Font strings and textures: regions that never receive events.
+local function newRegion(regionType, parent)
+  return setmetatable({
+    frameType = regionType,
+    parent = parent,
+    events = {},
+    scripts = {},
+    shown = true,
+  }, Frame)
+end
+function Frame:CreateFontString() return newRegion("FontString", self) end
+function Frame:CreateTexture() return newRegion("Texture", self) end
 
 function CreateFrame(frameType, name, parent, template)
   local frame = setmetatable({
@@ -374,6 +427,9 @@ function CreateFrame(frameType, name, parent, template)
   if name then _G[name] = frame end
   return frame
 end
+
+UIParent = CreateFrame("Frame", "UIParent")
+UISpecialFrames = {}
 
 -- Dispatch `event` to every frame registered for it, in creation order.
 function WowTest.fire(event, ...)
@@ -394,9 +450,20 @@ local function asHardwareEvent(fn, ...)
 end
 
 -- Simulate a mouse click on a frame (runs OnClick as a hardware event).
+-- A CheckButton toggles its checked state before OnClick, like the client.
 function WowTest.click(frame, button)
+  if frame.frameType == "CheckButton" then frame.checked = not frame.checked end
   local handler = frame.scripts.OnClick
   if handler then asHardwareEvent(handler, frame, button or "LeftButton", false) end
+end
+
+-- Simulate a key bound in Bindings.xml: runs the <Binding> body (Lua source)
+-- as a hardware event, with keystate "down" like the client.
+function WowTest.pressBinding(body)
+  local loader = loadstring or load
+  local chunk, err = loader("local keystate = 'down'\n" .. body, "@Bindings.xml")
+  if not chunk then error(err, 0) end
+  asHardwareEvent(chunk)
 end
 
 -- Simulate the player typing a slash command, e.g. WowTest.slash("/ftr sync").
@@ -418,6 +485,41 @@ function WowTest.slash(line)
 end
 
 SlashCmdList = {}
+
+-- ---------------------------------------------------------------------------
+-- Static popups (confirmation dialogs)
+-- ---------------------------------------------------------------------------
+
+StaticPopupDialogs = {}
+WowTest.popups = {} -- names of the popups currently shown
+
+function StaticPopup_Show(name)
+  if not StaticPopupDialogs[name] then return nil end
+  StaticPopup_Hide(name)
+  table.insert(WowTest.popups, name)
+  return { which = name }
+end
+
+function StaticPopup_Hide(name)
+  for i = #WowTest.popups, 1, -1 do
+    if WowTest.popups[i] == name then table.remove(WowTest.popups, i) end
+  end
+end
+
+local function answerPopup(name, callback)
+  local shown = false
+  for _, n in ipairs(WowTest.popups) do
+    if n == name then shown = true end
+  end
+  if not shown then error("popup not shown: " .. tostring(name)) end
+  StaticPopup_Hide(name)
+  local dialog = StaticPopupDialogs[name]
+  if dialog[callback] then asHardwareEvent(dialog[callback], { which = name }) end
+end
+
+-- Simulate a click on the first (accept) or second (cancel) button of a popup.
+function WowTest.acceptPopup(name) answerPopup(name, "OnAccept") end
+function WowTest.cancelPopup(name) answerPopup(name, "OnCancel") end
 
 -- ---------------------------------------------------------------------------
 -- Protected / spied calls
