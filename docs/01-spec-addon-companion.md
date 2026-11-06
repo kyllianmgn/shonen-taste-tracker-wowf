@@ -140,6 +140,16 @@ Conditions sûres (toutes vraies) : `not InCombatLockdown()`, `not UnitAffecting
 
 Raccourci : `Bindings.xml` déclare une action « ForeverTracker : synchroniser maintenant » que le joueur assigne à une touche ; elle appelle `ReloadUI()` si les conditions sont réunies.
 
+Détails d'implémentation (A-05) :
+
+- Le seul `ReloadUI()` de l'addon est dans `ns.SyncNow()` (`Sync.lua`), appelé par le bouton **Synchroniser**, la touche (`FOREVERTRACKER_SYNC`, fonction globale `ForeverTracker_SyncNow`) et `/ftr sync`. Il revérifie les conditions, recalcule le snapshot, puis recharge ; sinon il écrit la raison dans le chat (« Synchronisation impossible : tu es en combat. »).
+- `UnitCastingInfo` / `UnitChannelInfo` (sort en cours) et les autres appels des conditions sont cherchés au moment de l'appel : une API absente compte comme une condition remplie.
+- Le minuteur démarre au `PLAYER_LOGIN` et relit `settings.interval` à chaque passage : un `/ftr interval` s'applique sans recharger.
+- Toute fermeture hors combat (**Plus tard** ou la croix du cadre) repousse de 5 min et annule la fenêtre de niveau en attente ; un `LEVEL_UP` pendant ces 5 min attend leur fin. Si la case est cochée à ce moment, plus aucune fenêtre (intervalle ni niveau) jusqu'au prochain rechargement : le choix n'est pas sauvegardé.
+- `PLAYER_REGEN_DISABLED` masque la fenêtre sans la repousser : elle revient au premier passage du minuteur (ou à `PLAYER_REGEN_ENABLED`) où les conditions sont réunies.
+- À l'affichage, la fenêtre demande `/played` (`ns.RequestPlayed()`, limité à 1 fois / 5 min) pour que `playedTotal` soit à jour au moment du clic.
+- La fenêtre n'a pas de nom global (Échap ne la ferme pas) : les seules globales de l'addon sont `ForeverTrackerDB`, `SLASH_FTR1`, `BINDING_HEADER_FOREVERTRACKER`, `BINDING_NAME_FOREVERTRACKER_SYNC` et `ForeverTracker_SyncNow`. Modèles de cadres utilisés, à contrôler en jeu (A-07) : `BasicFrameTemplateWithInset`, `UIPanelButtonTemplate`, `UICheckButtonTemplate`.
+
 ### Commandes `/ftr`
 
 | Commande | Effet |
@@ -152,6 +162,14 @@ Raccourci : `Bindings.xml` déclare une action « ForeverTracker : synchroniser 
 | `/ftr reset` | Vide le journal du perso courant, après confirmation |
 
 Les réglages vivent dans `ForeverTrackerDB.settings` (communs à tous les persos du compte).
+
+Détails d'implémentation (A-05) :
+
+- Sous-commande insensible à la casse ; `/ftr help` liste les commandes, une sous-commande inconnue affiche « Commande inconnue » puis la liste. Une valeur hors liste (`/ftr interval 7`) ne change rien et rappelle l'utilisation.
+- Ajouter une sous-commande : `ns.RegisterCommand(nom, handler, aide, arguments)` ; `handler` reçoit le reste de la ligne, sans espaces autour (A-06 y ajoute `share`).
+- « Événements en attente » = événements du perso enregistrés depuis la dernière écriture du fichier, c'est-à-dire après le dernier événement lu dans les SavedVariables au chargement (tous si celui-ci a été retiré par le plafond de 300).
+- « Dernière sauvegarde » = minutes écoulées depuis le `PLAYER_LOGIN` (règle 1).
+- `/ftr reset` ouvre une `StaticPopup` (**Vider** / **Annuler**) ; seul **Vider** remplace `events` du perso courant par une table vide, les autres persos ne changent pas.
 
 ### Mode de base : `/ftr share`
 

@@ -62,6 +62,17 @@ def test_example(wow):
   `state.instanceId` the 1st and 8th returns of `GetInstanceInfo()`.
 - `IsInGuild()` follows `state.guild` unless `state.inGuild` is set, e.g. `inGuild=True` with `guild=None`
   to simulate guild info that is not loaded yet.
-- `Bindings.xml` and other XML files are skipped: the loader runs only `.lua` files.
+- Safe conditions of the sync: `state.combatLockdown` (`InCombatLockdown()`), `state.inCombat`
+  (`UnitAffectingCombat`), `state.onTaxi`, `state.deadOrGhost`, `state.casting` (`UnitCastingInfo`)
+  and `state.channeling` (`UnitChannelInfo`).
+- Input helpers on `WowGame`: `wow.slash(line)`, `wow.click(frame)` (a `CheckButton` toggles before
+  `OnClick`), `wow.press_binding("FOREVERTRACKER_SYNC")` (runs the `<Binding>` body of `Bindings.xml`
+  as a key press); `wow.chat()` returns the chat lines.
+- `StaticPopup_Show(name)` records `name` in `wow.popups()`; `wow.wow.acceptPopup(name)` /
+  `wow.wow.cancelPopup(name)` click its first or second button.
+- Frames record `SetText` / `SetChecked`, other layout methods are no-ops; `CreateFontString()` returns
+  a region that answers `GetText()`. `UIParent` exists.
+- `Bindings.xml` and other XML files are skipped by the loader (it runs only `.lua` files); use
+  `wow.press_binding` to run a binding.
 - `load_saved_variables` executes the file like the game client does. Use it only with fixtures from
   this repo: the server and the companion parse SavedVariables as literals and never execute them.
