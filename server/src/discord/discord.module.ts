@@ -4,6 +4,7 @@ import { DISCORD_CLIENT, DiscordClientService } from './client/discord-client.se
 import { BNET_LINK_NOTIFIER } from '../bnet/oauth/link-notifier';
 import { DiscordBnetLinkNotifier } from './bnet-link/discord-bnet-link-notifier';
 import { CommandRegistry, loadCommandHandlers, loadComponentHandlers } from './registry/command-registry';
+import { ProfileQueryService } from './profile/profile-query.service';
 import { PrismaGuildConfigStore } from './setup/prisma-guild-config.store';
 import { GUILD_CONFIG_STORE, SetupService } from './setup/setup.service';
 
@@ -18,6 +19,7 @@ import { GUILD_CONFIG_STORE, SetupService } from './setup/setup.service';
     },
     { provide: GUILD_CONFIG_STORE, useClass: PrismaGuildConfigStore },
     SetupService,
+    ProfileQueryService,
     DiscordClientService,
     { provide: BNET_LINK_NOTIFIER, useClass: DiscordBnetLinkNotifier },
   ],

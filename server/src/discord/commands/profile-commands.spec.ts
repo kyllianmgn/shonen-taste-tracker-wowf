@@ -217,7 +217,7 @@ describe('/profil, /session, /classement', () => {
 
       expect(i.deferReply).toHaveBeenCalledWith();
       expect(sessionQuery).toHaveBeenCalledWith(MEMBER, expect.any(Date));
-      const now = sessionQuery.mock.calls[0][1] as Date;
+      const now = (sessionQuery.mock.calls as [string, Date][])[0][1];
       expect(i.editReply).toHaveBeenCalledWith({ content: renderSession(SESSION, now), allowedMentions: NO_PINGS });
     });
 
