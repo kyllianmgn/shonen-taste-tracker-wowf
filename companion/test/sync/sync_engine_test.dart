@@ -56,6 +56,10 @@ class Harness {
 
   int get unix => clock.now().millisecondsSinceEpoch ~/ 1000;
 
+  /// The tray state machine fed with every event so far.
+  tray.TrayState get trayState =>
+      tray_.fold(const tray.TrayState(paired: true), (state, e) => state.apply(e));
+
   Future<void> start() async {
     queue = OfflineQueue(
       api: api,
@@ -438,7 +442,8 @@ void main() {
       davina = davina.copyWith(capturedAt: h.unix, events: [...events]);
       await h.write(_fileA, [davina]);
       expect(h.api.deliveredEventIds, [login.id]);
-      expect(h.tray_.last, isA<tray.SendFailed>());
+      expect(h.trayState.color, tray.TrayColor.orange);
+      expect(h.trayState.issue, tray.TrayIssue.serverUnreachable);
 
       // Back online: the queue drains at its next retry.
       h.api.down = false;
@@ -457,6 +462,7 @@ void main() {
       ];
       expect(levels, [22, 23, 24, 25, 25]);
       expect(h.tray_.last, isA<tray.SendSucceeded>());
+      expect(h.trayState.issue, isNull);
     });
   });
 

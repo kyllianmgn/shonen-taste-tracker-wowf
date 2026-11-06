@@ -25,7 +25,7 @@ class AppPaths {
   /// Last snapshot sent per character and the ids of the events already sent (C-06).
   File get sentStateFile => File(_join(dataDir.path, 'sync-state.json'));
 
-  /// Offline queue folder (filled in C-07).
+  /// Offline queue folder: one JSON file per request waiting to be sent again (C-07).
   Directory get queueDir => Directory(_join(dataDir.path, 'queue'));
 
   static String _join(String a, String b) => '$a${Platform.pathSeparator}$b';

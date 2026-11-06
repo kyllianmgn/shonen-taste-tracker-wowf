@@ -29,10 +29,11 @@ dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
 | `api/` | client HTTP du contrat, erreurs typées, appairage, jeton dans le Gestionnaire d'identifiants | C-05 |
 | `ui/first_run/` | fenêtre de premier lancement (dossier du jeu, code, « Démarrer avec Windows ») | C-05 |
 | `sync/` | battements, synchros, ensemble des ids déjà envoyés ; relie C-02 à C-05 | C-06 |
-| `queue/` | file hors ligne | C-07 |
+| `queue/` | file hors ligne, arrêt des envois sur `401` | C-07 |
+| `ui/notifications/` | notification Windows (`local_notifier`) | C-07 |
 
-Les modules métier n'importent pas Flutter : seuls `main.dart` et `ui/tray/tray_controller.dart`
-touchent aux plugins (`ui/first_run/` n'utilise que les widgets).
+Les modules métier n'importent pas Flutter : seuls `main.dart`, `ui/tray/tray_controller.dart` et
+`ui/notifications/windows_notifier.dart` touchent aux plugins (`ui/first_run/` n'utilise que les widgets).
 
 ## Lecture des SavedVariables (`lua/`)
 
@@ -134,15 +135,51 @@ contenu des fichiers est envoyé.
   déduplique), en respectant les 30 s.
 - **`schema` inconnu** (autre que 1) : rien n'est envoyé, icône orange « mets à jour l'appli ».
   Un fichier qui n'est pas un littéral pur n'est pas envoyé non plus.
-- L'état envoyé n'est enregistré qu'après la réponse du serveur : une synchro en échec repart au
-  changement suivant. Erreurs : `401` → icône « jeton révoqué » ; réseau, 5xx, 429 → icône
-  « serveur injoignable » (la file hors ligne arrive avec C-07).
+- Tout passe par la file hors ligne (`queue/`, ci-dessous). L'état envoyé est enregistré quand le
+  serveur a accepté la synchro **ou** quand la file l'a prise : une synchro en file n'est pas
+  replanifiée au changement suivant, seuls les nouveaux événements partent (derrière elle). Une
+  synchro refusée pour de bon (400, 413…) n'est pas enregistrée : elle repart au changement suivant.
 
 Le normaliseur lit `assets/contract/sync.request.json`, copie de `contract/schemas/sync.request.json`
 embarquée dans l'appli ; `test/sync/contract_asset_test.dart` échoue si les deux diffèrent.
 
 Tests : faux watcher, faux détecteur et faux client API (corps validés contre `contract/schemas`),
 horloge manuelle (`test/support/fake_clock.dart`).
+
+## File hors ligne (`queue/`)
+
+`OfflineQueue` est unique pour toute l'appli (elle survit aux changements de dossier du jeu) et se
+place entre `SyncEngine` et `ApiClient`.
+
+- **Mise en file** : un battement ou une synchro en échec réseau, 5xx ou 429 est écrit dans
+  `%APPDATA%\ForeverTrackerSync\queue\` (un fichier `<numéro>.json` par requête, corps du contrat
+  tel quel, jamais le jeton). Icône orange « serveur injoignable ».
+- **Rejeu** : 5 s, 30 s, 2 min, puis toutes les 10 min ; un `Retry-After` plus long l'emporte. Les
+  délais repartent de zéro après un succès. « Synchroniser maintenant » rejoue la file tout de suite.
+- **Ordre** : tant que la file n'est pas vide, les nouvelles requêtes passent derrière, même si le
+  réseau est revenu ; la file part de la plus ancienne à la plus récente, avec le `sentAt` d'origine.
+- **Expiration** : battements de plus de 30 min et synchros de plus de 7 jours jetés (âge compté
+  depuis le premier essai), au démarrage et avant chaque rejeu.
+- **Refus définitif** pendant le rejeu (400, 413, 422, réponse hors contrat) : la requête est jetée,
+  la suivante part. Un 422 met l'icône orange « mets à jour l'appli ».
+- **`401`** : plus aucun envoi (ni direct, ni rejeu), la file reste sur le disque, icône orange
+  « jeton révoqué » et **une** notification Windows « Jeton révoqué : réappaire l'appli avec
+  /lier appli sur Discord. ». Après un nouvel appairage, la file repart, puis tout est renvoyé.
+  Au lancement suivant de l'appli, le jeton révoqué est réessayé une fois : une notification par
+  lancement au plus.
+- **Délier** vide la file.
+- **Redémarrage** : les fichiers de `queue\` sont relus au démarrage et rejoués dans l'ordre ; un
+  fichier illisible est supprimé (nom seul dans les logs).
+- **Pas de doublon** : une synchro n'est mise en file qu'une fois. Si une réponse se perd alors que
+  le serveur a enregistré la synchro, le rejeu renvoie les mêmes ids d'événements et le serveur les
+  compte en `duplicateEvents`.
+
+La notification passe par `local_notifier` (toast Windows). Windows n'affiche les toasts d'une
+appli de bureau que si elle a un raccourci dans le menu Démarrer : `localNotifier.setup` le crée au
+démarrage s'il manque.
+
+Tests : `test/queue/` (horloge manuelle, faux serveur, vrai dossier temporaire pour le
+redémarrage) et le groupe « network cut then back » de `test/sync/sync_engine_test.dart`.
 
 ## Fichiers locaux
 
@@ -151,8 +188,10 @@ Dans `%APPDATA%\ForeverTrackerSync\` :
 - `settings.json` : `gameFolder`, `startWithWindows` (vrai par défaut), `firstRunCompleted`, `version`.
   Aucun secret ; un fichier illisible redonne les valeurs par défaut. Le jeton est dans le
   Gestionnaire d'identifiants Windows (`ForeverTrackerSync/deviceToken`).
-- `sync-state.json` : dernier `capturedAt` envoyé par perso et 1 000 derniers ids d'événements
-  envoyés. Illisible → repart de zéro (le serveur déduplique).
+- `sync-state.json` : dernier `capturedAt` envoyé (ou mis en file) par perso et 1 000 derniers ids
+  d'événements envoyés. Illisible → repart de zéro (le serveur déduplique).
+- `queue\0000000001.json`… : requêtes en attente de la file hors ligne (corps du contrat, numéro,
+  type, date du premier essai). Supprimées une fois envoyées, refusées ou expirées.
 - `forevertracker-sync.log` puis `.1.log` … `.4.log` : 1 Mo par fichier, 5 fichiers au plus.
   Jamais de jeton, de code ni de contenu complet de SavedVariables.
 
@@ -162,6 +201,6 @@ Dans `%APPDATA%\ForeverTrackerSync\` :
 | --- | --- |
 | verte | jeu détecté, aucun problème (dernier envoi OK ou rien envoyé encore) |
 | grise | jeu fermé, aucun problème |
-| orange | non appairée, jeton révoqué (401), `schema` inconnu, ou dernier envoi en échec — même jeu fermé |
+| orange | non appairée, jeton révoqué (401, avec notification Windows), `schema` inconnu, ou dernier envoi en échec (requête en file) — même jeu fermé |
 
 La fenêtre n'est jamais affichée au démarrage ; la fermer la cache, « Quitter » arrête l'appli.

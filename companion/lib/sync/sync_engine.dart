@@ -3,14 +3,12 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 
-import '../api/api_error.dart';
 import '../api/api_models.dart';
-import '../api/companion_api.dart';
-import '../api/token_store.dart';
 import '../lua/lua_parser.dart';
 import '../lua/normalize.dart';
 import '../lua/saved_variables.dart';
 import '../process/game_detector.dart';
+import '../queue/offline_queue.dart';
 import '../ui/tray/tray_state.dart' as tray;
 import '../wow_files/saved_variables_watcher.dart';
 import 'sent_state.dart';
@@ -39,14 +37,14 @@ Timer _oneShotTimer(Duration delay, void Function() callback) => Timer(delay, ca
 ///   file is read again for the final sync.
 /// - Unknown `schema`: nothing sent, [tray.UnknownSchema].
 ///
-/// Sent state is saved only once the server accepted the sync, so a failed sync
-/// goes out again on the next change (the offline queue comes with C-07).
+/// Everything goes through the [RequestSender] (the offline queue, C-07), which
+/// reports failures to the tray. Sent state is saved once the server accepted the
+/// sync or the queue took it, so a queued sync is not planned a second time.
 class SyncEngine implements SyncService {
   SyncEngine({
     required this._files,
     required this._game,
-    required this._api,
-    required this._tokens,
+    required this._sender,
     required SentStateStore sentState,
     required JsonSchema syncRequestSchema,
     required this._listFiles,
@@ -65,8 +63,7 @@ class SyncEngine implements SyncService {
 
   final Stream<FileReady> _files;
   final Stream<GameEvent> _game;
-  final CompanionApi _api;
-  final TokenStore _tokens;
+  final RequestSender _sender;
   final SentStateStore _store;
   final JsonSchema _schema;
   final Future<List<String>> Function() _listFiles;
@@ -104,7 +101,8 @@ class SyncEngine implements SyncService {
     if (_disposed) return;
     _subscriptions
       ..add(_files.listen(_onFileReady))
-      ..add(_game.listen(_onGameEvent));
+      ..add(_game.listen(_onGameEvent))
+      ..add(_sender.heartbeatIntervals.listen((sec) => _heartbeatIntervalSec = sec));
   }
 
   Future<void> dispose() async {
@@ -119,11 +117,12 @@ class SyncEngine implements SyncService {
     _subscriptions.clear();
   }
 
-  /// "Synchroniser maintenant": re-reads every file and sends it all again,
-  /// still at most one sync every [minSyncInterval].
+  /// "Synchroniser maintenant": replays the offline queue, then re-reads every
+  /// file and sends it all again, still at most one sync every [minSyncInterval].
   @override
   Future<void> syncNow() async {
     _log.info('sync requested from the tray');
+    await _sender.retryNow();
     for (final path in await _allFiles()) {
       _enqueue(path, force: true);
     }
@@ -228,21 +227,22 @@ class SyncEngine implements SyncService {
   }
 
   Future<void> _sendSync(SyncRequest request) async {
-    final token = await _tokens.read();
-    if (token == null) {
-      _log.info('not paired: sync skipped');
-      return;
-    }
     _lastSyncAt = _now();
-    try {
-      final response = await _api.sync(token, request);
-      _heartbeatIntervalSec = response.heartbeatIntervalSec;
-      _sent.markSent(request.characters);
-      await _saveSentState();
-      _logResults(response);
-      _emit(tray.SendSucceeded(_now(), isSync: true, character: _lastCharacterName));
-    } on ApiException catch (e) {
-      _onApiError('sync', e);
+    final outcome = await _sender.sync(request);
+    if (_disposed) return;
+    switch (outcome) {
+      case Delivered(:final response):
+        _heartbeatIntervalSec = response.heartbeatIntervalSec;
+        _sent.markSent(request.characters);
+        await _saveSentState();
+        _logResults(response);
+        _emit(tray.SendSucceeded(_now(), isSync: true, character: _lastCharacterName));
+      case Queued():
+        // The queue delivers it (or drops it after 7 days); do not plan it again.
+        _sent.markSent(request.characters);
+        await _saveSentState();
+      case NotSent():
+        break;
     }
   }
 
@@ -295,26 +295,18 @@ class SyncEngine implements SyncService {
   }
 
   Future<void> _heartbeat(int generation, bool running) async {
-    final token = await _tokens.read();
+    final outcome = await _sender.heartbeat(
+      HeartbeatRequest(
+        sentAt: _unixNow(),
+        gameRunning: running,
+        appVersion: _appVersion,
+        lastCharacter: _lastSession?.character,
+      ),
+    );
     if (_disposed) return;
-    if (token == null) {
-      _log.fine('not paired: heartbeat skipped');
-    } else {
-      try {
-        final response = await _api.heartbeat(
-          token,
-          HeartbeatRequest(
-            sentAt: _unixNow(),
-            gameRunning: running,
-            appVersion: _appVersion,
-            lastCharacter: _lastSession?.character,
-          ),
-        );
-        _heartbeatIntervalSec = response.heartbeatIntervalSec;
-        _emit(tray.SendSucceeded(_now(), character: _lastCharacterName));
-      } on ApiException catch (e) {
-        _onApiError('heartbeat', e);
-      }
+    if (outcome case Delivered(:final response)) {
+      _heartbeatIntervalSec = response.heartbeatIntervalSec;
+      _emit(tray.SendSucceeded(_now(), character: _lastCharacterName));
     }
     if (_disposed || generation != _gameGeneration || !_gameRunning) return;
     _heartbeatTimer?.cancel();
@@ -325,20 +317,6 @@ class SyncEngine implements SyncService {
   }
 
   // --- Shared ----------------------------------------------------------------
-
-  void _onApiError(String what, ApiException e) {
-    _log.warning('$what failed: $e');
-    switch (e) {
-      case InvalidToken():
-        _emit(const tray.Unauthorized());
-      case SchemaRejected():
-        _emit(const tray.UnknownSchema());
-      case _ when e.retryable:
-        _emit(const tray.SendFailed());
-      default:
-        break;
-    }
-  }
 
   String? get _lastCharacterName {
     final c = _lastSession?.character;

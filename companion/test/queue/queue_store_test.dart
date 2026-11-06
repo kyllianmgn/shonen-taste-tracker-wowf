@@ -79,9 +79,6 @@ void main() {
     expect(stopped.gameRunning, isFalse);
     final sync = SyncRequest.fromJson(contractFixture('sync.valid.json'));
     expect(jsonDecode(jsonEncode(sync.toJson())), contractFixture('sync.valid.json'));
-    expect(
-      () => HeartbeatRequest.fromJson({'sentAt': 'x'}),
-      throwsA(isA<FormatException>()),
-    );
+    expect(() => HeartbeatRequest.fromJson({'sentAt': 'x'}), throwsA(isA<FormatException>()));
   });
 }

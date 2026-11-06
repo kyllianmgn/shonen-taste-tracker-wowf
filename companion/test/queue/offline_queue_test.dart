@@ -79,24 +79,27 @@ void main() {
   });
 
   group('network cut then back', () {
-    test('a failed request is queued and replayed after 5 s, 30 s, 2 min, then every 10 min', () async {
-      await h.start();
-      h.api.down = true;
-      final outcome = await h.queue.heartbeat(h.heartbeat());
-      expect(outcome, isA<Queued<HeartbeatResponse>>());
-      expect(h.queue.length, 1);
-      expect(h.tray_.whereType<tray.SendFailed>(), hasLength(1));
+    test(
+      'a failed request is queued and replayed after 5 s, 30 s, 2 min, then every 10 min',
+      () async {
+        await h.start();
+        h.api.down = true;
+        final outcome = await h.queue.heartbeat(h.heartbeat());
+        expect(outcome, isA<Queued<HeartbeatResponse>>());
+        expect(h.queue.length, 1);
+        expect(h.tray_.whereType<tray.SendFailed>(), hasLength(1));
 
-      await h.clock.elapse(const Duration(minutes: 25));
-      expect(h.attemptOffsets, const [
-        Duration.zero,
-        Duration(seconds: 5),
-        Duration(seconds: 35),
-        Duration(seconds: 155),
-        Duration(seconds: 755),
-        Duration(seconds: 1355),
-      ]);
-    });
+        await h.clock.elapse(const Duration(minutes: 25));
+        expect(h.attemptOffsets, const [
+          Duration.zero,
+          Duration(seconds: 5),
+          Duration(seconds: 35),
+          Duration(seconds: 155),
+          Duration(seconds: 755),
+          Duration(seconds: 1355),
+        ]);
+      },
+    );
 
     test('everything queued goes out in the order it was sent, once the network is back', () async {
       await h.start();

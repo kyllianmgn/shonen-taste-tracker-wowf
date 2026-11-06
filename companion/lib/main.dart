@@ -17,6 +17,8 @@ import 'api/pairing_service.dart';
 import 'app/app_info.dart';
 import 'app/rotating_file_sink.dart';
 import 'process/win32_process_lister.dart';
+import 'queue/offline_queue.dart';
+import 'queue/queue_store.dart';
 import 'settings/app_paths.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_store.dart';
@@ -26,6 +28,7 @@ import 'sync/sent_state.dart';
 import 'sync/sync_runtime.dart';
 import 'ui/first_run/first_run_controller.dart';
 import 'ui/first_run/first_run_window.dart';
+import 'ui/notifications/windows_notifier.dart';
 import 'ui/tray/tray_actions.dart';
 import 'ui/tray/tray_controller.dart';
 import 'ui/tray/tray_state.dart';
@@ -71,12 +74,21 @@ Future<void> main() async {
   ) as Map<String, Object?>;
   final sentState = FileSentStateStore(paths.sentStateFile);
   final processLister = Win32ProcessLister();
+  final notifier = WindowsNotifier();
+  await notifier.setup('ForeverTracker Sync');
+  // One queue for the whole app: it outlives the per-folder sessions.
+  final queue = OfflineQueue(
+    api: apiClient,
+    tokens: tokenStore,
+    store: FileQueueStore(paths.queueDir),
+    emit: (e) => tray.dispatch(e),
+    notifier: notifier,
+  );
   final sync = SyncRuntime(
     (folder) => GameFolderSyncSession(
       gameFolder: folder,
       processLister: processLister,
-      api: apiClient,
-      tokens: tokenStore,
+      sender: queue,
       sentState: sentState,
       syncRequestSchema: syncRequestSchema,
       emit: (e) => tray.dispatch(e),
@@ -113,18 +125,29 @@ Future<void> main() async {
       quit: () async {
         _log.info('quitting');
         await sync.dispose();
+        await queue.dispose();
         await tray.dispose();
         await windowManager.setPreventClose(false);
         await windowManager.destroy();
       },
       emit: (event) {
         emit(event);
-        // Newly paired: send everything the files hold.
-        if (event is Paired) unawaited(sync.syncNow());
+        switch (event) {
+          // Newly paired: replay the queue, then send everything the files hold.
+          case Paired():
+            unawaited(queue.resume().then((_) => sync.syncNow()));
+          // Unpaired: nothing queued may reach the server any more.
+          case Unpaired():
+            unawaited(queue.clear());
+          default:
+            break;
+        }
       },
     ),
   );
   await tray.start();
+  // The tray exists now: queue events (replays, 401) can reach it.
+  await queue.start();
   unawaited(sync.setGameFolder(settings.gameFolder));
 
   runApp(CompanionApp(firstRun: firstRun));
@@ -134,7 +157,7 @@ Future<void> main() async {
       firstRun.present().then((ok) {
         if (!ok) return;
         tray.dispatch(const Paired());
-        unawaited(sync.syncNow());
+        unawaited(queue.resume().then((_) => sync.syncNow()));
       }),
     );
   }

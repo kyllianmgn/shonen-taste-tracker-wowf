@@ -106,6 +106,18 @@ class HeartbeatRequest {
     'appVersion': appVersion,
     if (lastCharacter != null) 'lastCharacter': lastCharacter!.toJson(),
   };
+
+  /// Reads back [toJson], for the offline queue.
+  factory HeartbeatRequest.fromJson(Object? json) {
+    final m = _map(json);
+    final last = m['lastCharacter'];
+    return HeartbeatRequest(
+      sentAt: _field<int>(m, 'sentAt'),
+      gameRunning: _field<bool>(m, 'gameRunning'),
+      appVersion: _field<String>(m, 'appVersion'),
+      lastCharacter: last == null ? null : CharacterRef.fromJson(last),
+    );
+  }
 }
 
 /// `heartbeat.response.json`.
@@ -145,6 +157,17 @@ class SyncRequest {
     'addonVersion': addonVersion,
     'characters': characters,
   };
+
+  /// Reads back [toJson], for the offline queue. [characters] stay as they are.
+  factory SyncRequest.fromJson(Object? json) {
+    final m = _map(json);
+    return SyncRequest(
+      sentAt: _field<int>(m, 'sentAt'),
+      schema: _field<int>(m, 'schema'),
+      addonVersion: _field<String>(m, 'addonVersion'),
+      characters: _field<List<Object?>>(m, 'characters'),
+    );
+  }
 }
 
 enum SyncStatus {
