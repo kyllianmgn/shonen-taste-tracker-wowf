@@ -10,6 +10,7 @@ import { HeartbeatController } from './heartbeat/heartbeat.controller';
 import { DevicesController } from './pairing/devices.controller';
 import { PairingService } from './pairing/pairing.service';
 import { SyncController } from './sync/sync.controller';
+import { ManualSyncService } from './share-code/manual-sync.service';
 import { SyncService } from './sync/sync.service';
 
 /**
@@ -27,9 +28,10 @@ import { SyncService } from './sync/sync.service';
     { provide: APP_FILTER, useClass: ApiExceptionFilter },
     PairingService,
     SyncService,
+    ManualSyncService,
     DeviceAuthGuard,
     RateLimitGuard,
   ],
-  exports: [INGEST_CLOCK, SlidingWindowLimiter, PairingService, SyncService, DeviceAuthGuard, RateLimitGuard],
+  exports: [INGEST_CLOCK, SlidingWindowLimiter, PairingService, SyncService, ManualSyncService, DeviceAuthGuard, RateLimitGuard],
 })
 export class IngestModule {}

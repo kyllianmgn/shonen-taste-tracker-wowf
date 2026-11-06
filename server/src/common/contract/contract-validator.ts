@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import Ajv2020, { type ErrorObject, type ValidateFunction } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
+import type { JsonSchema } from '../lua/normalize';
 
 /**
  * Validation of exchanged payloads against the shared JSON Schemas (docs/03 « Contrat partagé »).
@@ -45,6 +46,7 @@ export function findContractDir(start: string = __dirname): string {
 
 export class ContractValidator {
   private readonly validators = new Map<string, ValidateFunction>();
+  private readonly schemas = new Map<string, object>();
 
   constructor(contractDir: string = findContractDir()) {
     const schemasDir = join(contractDir, 'schemas');
@@ -56,6 +58,7 @@ export class ContractValidator {
     for (const file of readdirSync(schemasDir).filter((f) => f.endsWith('.json'))) {
       const name = file.slice(0, -'.json'.length);
       const schema = JSON.parse(readFileSync(join(schemasDir, file), 'utf8')) as object;
+      this.schemas.set(name, schema);
       this.validators.set(name, ajv.compile(schema));
     }
 
@@ -65,6 +68,13 @@ export class ContractValidator {
 
   schemaNames(): string[] {
     return [...this.validators.keys()];
+  }
+
+  /** The schema as read from its file, e.g. to guide Lua normalization (common/lua/normalize.ts). Do not mutate. */
+  schema(schemaName: SchemaName): JsonSchema {
+    const schema = this.schemas.get(schemaName);
+    if (!schema) throw new Error(`Unknown contract schema "${schemaName}"`);
+    return schema as JsonSchema;
   }
 
   validate(schemaName: SchemaName, payload: unknown): ValidationResult {

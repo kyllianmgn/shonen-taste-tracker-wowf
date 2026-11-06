@@ -48,7 +48,7 @@ const roleOf = (c: { role: string | null }): CharacterRole =>
 /**
  * Ingestion of a sync (docs/02 « Synchro », « Règles de validation »): ownership, snapshots and
  * deduplicated events, one transaction per character so one bad character never blocks the others.
- * Used by POST /v1/sync (source `app`) and later by /sync (source `manual`, S-19).
+ * Used by POST /v1/sync (source `app`) and by /sync through ManualSyncService (source `manual`).
  */
 @Injectable()
 export class SyncService {
