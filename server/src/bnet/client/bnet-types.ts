@@ -54,3 +54,9 @@ export type BnetPublicCharacterResult =
   | { status: 200; character: BnetPublicCharacter; lastModified?: string }
   | { status: 304 }
   | { status: 404 };
+
+/** Player token from the authorization code grant: valid `expiresInSec` (24 h), no refresh token. */
+export interface BnetUserToken {
+  accessToken: string;
+  expiresInSec: number;
+}

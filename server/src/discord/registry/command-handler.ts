@@ -1,5 +1,5 @@
 import type { Type } from '@nestjs/common';
-import type { AutocompleteInteraction, ChatInputCommandInteraction } from 'discord.js';
+import type { AutocompleteInteraction, ChatInputCommandInteraction, MessageComponentInteraction } from 'discord.js';
 
 /** Access to Nest providers from a command handler (handler files are not Nest providers themselves). */
 export interface CommandContext {
@@ -15,6 +15,15 @@ export interface CommandHandler {
   readonly key: string;
   execute(interaction: ChatInputCommandInteraction, ctx: CommandContext): Promise<void>;
   autocomplete?(interaction: AutocompleteInteraction, ctx: CommandContext): Promise<void>;
+}
+
+/**
+ * A button or select menu, matched by its exact custom id. Command files may export
+ * `components: ComponentHandler[]` next to `handlers`.
+ */
+export interface ComponentHandler {
+  readonly customId: string;
+  execute(interaction: MessageComponentInteraction, ctx: CommandContext): Promise<void>;
 }
 
 interface KeyedInteraction {

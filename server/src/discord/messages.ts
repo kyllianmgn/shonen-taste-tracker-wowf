@@ -1,6 +1,7 @@
 /** User-facing strings shared by every command (French only, docs/03 « Langue du bot »). */
 export const MSG = {
   comingSoon: '🚧 Bientôt disponible.',
+  componentExpired: '⌛ Ce menu n’est plus disponible. Relance la commande.',
   genericError: '❌ Une erreur est survenue. Réessaie dans un instant.',
   guildOnly: '❌ Cette commande s’utilise sur un serveur.',
   manageGuildRequired: '❌ Cette commande demande la permission « Gérer le serveur ».',

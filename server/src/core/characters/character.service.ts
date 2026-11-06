@@ -6,9 +6,13 @@ import { normalizeCharacterName } from './character-name';
 import type {
   AddCharacterInput,
   AddCharacterResult,
+  BnetCharacterData,
+  BnetLinkEntry,
   CharacterRef,
   CharacterRole,
+  LinkFromBnetInput,
   OwnedCharacter,
+  SetAltResult,
   SetMainResult,
   TrackedRole,
   UntrackResult,
@@ -23,6 +27,7 @@ interface CharacterRow {
   surname: string;
   ownerId: string | null;
   role: string | null;
+  bnetVerified: boolean;
 }
 
 const ROLE_ORDER: Record<CharacterRole, number> = { main: 0, alt: 1, untracked: 2 };
@@ -109,6 +114,73 @@ export class CharacterService {
     );
   }
 
+  /** The character becomes alt; the former alt becomes untracked. The main is refused. */
+  async setAlt(ownerId: string, characterId: bigint): Promise<SetAltResult> {
+    return this.withRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        await this.lockPlayer(tx, ownerId);
+        const target = await tx.character.findFirst({ where: { id: characterId, ownerId } });
+        if (!target) return { status: 'not_found' };
+        const role = roleOf(target);
+        if (role === 'main') return { status: 'is_main', character: ref(target) };
+        if (role === 'alt') return { status: 'already_alt', character: ref(target) };
+
+        const alt = (await this.trackedOf(tx, ownerId)).find((c) => c.role === 'alt');
+        if (alt) await tx.character.update({ where: { id: alt.id }, data: { role: 'untracked' } });
+        await tx.character.update({ where: { id: target.id }, data: { role: 'alt' } });
+        return { status: 'set', character: ref(target), replaced: alt ? toRef(alt) : null };
+      }),
+    );
+  }
+
+  /**
+   * /lier battlenet step 5 (docs/02 « Flux »): the account proves ownership. Already the member's →
+   * verified; without owner → attached; unknown → created; another member's without verification →
+   * transferred (the caller tells the admins); another member's with verification → left alone.
+   * Attached, created and transferred characters are untracked: the member picks roles afterwards.
+   * Imported fields only fill in or refresh data, never erase it with null.
+   */
+  async linkFromBnet(input: LinkFromBnetInput): Promise<BnetLinkEntry[]> {
+    const { ownerId, region } = input;
+    return this.withRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`INSERT INTO player (discord_user_id) VALUES (${ownerId}) ON CONFLICT DO NOTHING`;
+        await this.lockPlayer(tx, ownerId);
+
+        const entries: BnetLinkEntry[] = [];
+        for (const data of input.characters) {
+          const imported = importedFields(data);
+          const existing = await this.findByIdentity(tx, { region, firstName: data.firstName, surname: data.surname });
+
+          if (!existing) {
+            const created = await tx.character.create({
+              data: { region, firstName: data.firstName, surname: data.surname, ownerId, role: 'untracked', bnetVerified: true, ...imported },
+            });
+            entries.push({ character: ref(created), outcome: 'created', role: 'untracked' });
+          } else if (existing.ownerId === ownerId) {
+            await tx.character.update({ where: { id: existing.id }, data: { bnetVerified: true, ...imported } });
+            entries.push({ character: ref(existing), outcome: 'verified', role: roleOf(existing) });
+          } else if (existing.ownerId === null) {
+            await tx.character.update({
+              where: { id: existing.id },
+              data: { ownerId, role: 'untracked', bnetVerified: true, ...imported },
+            });
+            entries.push({ character: ref(existing), outcome: 'claimed', role: 'untracked' });
+          } else if (!existing.bnetVerified) {
+            await tx.character.update({
+              where: { id: existing.id },
+              data: { ownerId, role: 'untracked', bnetVerified: true, ...imported },
+            });
+            entries.push({ character: ref(existing), outcome: 'transferred', role: 'untracked', previousOwnerId: existing.ownerId });
+          } else {
+            entries.push({ character: ref(existing), outcome: 'owned_by_other', role: null });
+          }
+        }
+        return entries;
+      }),
+    );
+  }
+
   /** The character stays owned but is no longer tracked (role untracked). */
   async untrack(ownerId: string, characterId: bigint): Promise<UntrackResult> {
     return this.prisma.$transaction(async (tx) => {
@@ -171,7 +243,7 @@ export class CharacterService {
     key: { region: string; firstName: string; surname: string },
   ): Promise<CharacterRow | null> {
     const rows = await tx.$queryRaw<CharacterRow[]>`
-      SELECT id, region, first_name AS "firstName", surname, owner_id AS "ownerId", role
+      SELECT id, region, first_name AS "firstName", surname, owner_id AS "ownerId", role, bnet_verified AS "bnetVerified"
       FROM "character"
       WHERE region = ${key.region} AND lower(first_name) = lower(${key.firstName}) AND lower(surname) = lower(${key.surname})
       FOR UPDATE`;
@@ -188,6 +260,18 @@ export class CharacterService {
   private withRetry<T>(run: () => Promise<T>): Promise<T> {
     return retryOnUniqueViolation(run, MAX_ATTEMPTS);
   }
+}
+
+/** Battle.net fields to write: only the known ones, so a null never erases data from a sync. */
+const IMPORTED_FIELDS = ['classFile', 'raceFile', 'faction', 'realmName', 'ruleset'] as const;
+
+function importedFields(data: BnetCharacterData): Partial<Record<(typeof IMPORTED_FIELDS)[number], string>> {
+  const fields: Partial<Record<(typeof IMPORTED_FIELDS)[number], string>> = {};
+  for (const key of IMPORTED_FIELDS) {
+    const value = data[key];
+    if (value !== null) fields[key] = value;
+  }
+  return fields;
 }
 
 const toRef = (c: OwnedCharacter): CharacterRef => ({

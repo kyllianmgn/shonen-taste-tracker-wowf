@@ -10,6 +10,7 @@ import type {
   BnetAccountProfile,
   BnetPublicCharacterResult,
   BnetRealm,
+  BnetUserToken,
 } from './bnet-types';
 import { type Clock, systemClock } from './clock';
 import { RateLimiter } from './rate-limiter';
@@ -203,8 +204,26 @@ export class BnetClient {
     if (this.appTokenCache?.token === token) this.appTokenCache = undefined;
   }
 
+  /**
+   * Authorization code grant of /lier battlenet: the player token (24 h, no refresh token).
+   * It does not touch the cached app token. Errors carry the status only, never the code.
+   */
+  async exchangeAuthorizationCode(code: string, redirectUri: string): Promise<BnetUserToken> {
+    const body = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: redirectUri });
+    const token = await this.postToken(body.toString(), 'POST /token (authorization_code)');
+    return { accessToken: token.access_token, expiresInSec: token.expires_in };
+  }
+
   /** Client credentials grant. */
   private async requestAppToken(): Promise<string> {
+    const token = await this.postToken('grant_type=client_credentials', 'POST /token');
+    const lifetimeMs = token.expires_in * 1000;
+    const margin = Math.min(TOKEN_RENEW_MARGIN_MS, lifetimeMs / 2);
+    this.appTokenCache = { token: token.access_token, renewAt: this.clock.now() + lifetimeMs - margin };
+    return token.access_token;
+  }
+
+  private async postToken(body: string, what: string): Promise<{ access_token: string; expires_in: number }> {
     const basic = Buffer.from(`${this.credentials.clientId}:${this.credentials.clientSecret}`).toString('base64');
     let res: Response;
     try {
@@ -215,30 +234,26 @@ export class BnetClient {
           'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/json',
         },
-        body: 'grant_type=client_credentials',
+        body,
       });
     } catch {
-      throw new BnetAuthError('POST /token: network error');
+      throw new BnetAuthError(`${what}: network error`);
     }
     if (res.status !== 200) {
       await discard(res);
-      throw new BnetAuthError(`POST /token: HTTP ${res.status}`, res.status);
+      throw new BnetAuthError(`${what}: HTTP ${res.status}`, res.status);
     }
 
-    let body: unknown;
+    let json: unknown;
     try {
-      body = await res.json();
+      json = await res.json();
     } catch {
-      throw new BnetAuthError('POST /token: invalid JSON', res.status);
+      throw new BnetAuthError(`${what}: invalid JSON`, res.status);
     }
-    if (!isRecord(body) || typeof body.access_token !== 'string' || typeof body.expires_in !== 'number') {
-      throw new BnetAuthError('POST /token: malformed response', res.status);
+    if (!isRecord(json) || typeof json.access_token !== 'string' || typeof json.expires_in !== 'number') {
+      throw new BnetAuthError(`${what}: malformed response`, res.status);
     }
-
-    const lifetimeMs = body.expires_in * 1000;
-    const margin = Math.min(TOKEN_RENEW_MARGIN_MS, lifetimeMs / 2);
-    this.appTokenCache = { token: body.access_token, renewAt: this.clock.now() + lifetimeMs - margin };
-    return body.access_token;
+    return { access_token: json.access_token, expires_in: json.expires_in };
   }
 }
 

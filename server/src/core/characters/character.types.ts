@@ -55,3 +55,36 @@ export type UntrackResult =
   | { status: 'untracked'; character: CharacterRef }
   | { status: 'already_untracked'; character: CharacterRef }
   | { status: 'not_found' };
+
+export type SetAltResult =
+  | { status: 'set'; character: CharacterRef; replaced: CharacterRef | null }
+  | { status: 'already_alt'; character: CharacterRef }
+  | { status: 'is_main'; character: CharacterRef }
+  | { status: 'not_found' };
+
+/** One character of a Battle.net account, as /lier battlenet imports it (docs/02 « Flux » step 4). */
+export interface BnetCharacterData {
+  firstName: string;
+  surname: string;
+  classFile: string | null;
+  raceFile: string | null;
+  faction: 'Alliance' | 'Horde' | 'Neutral' | null;
+  realmName: string | null;
+  ruleset: string | null;
+}
+
+export interface LinkFromBnetInput {
+  ownerId: string;
+  region: Region;
+  characters: BnetCharacterData[];
+}
+
+/** See LinkEntryOutcome in bnet/oauth/link-outcome.ts for the meaning of each outcome. */
+export interface BnetLinkEntry {
+  character: CharacterRef;
+  outcome: 'verified' | 'claimed' | 'created' | 'transferred' | 'owned_by_other';
+  /** Role for the member after the link; null when the character stays another member's. */
+  role: CharacterRole | null;
+  /** Set for `transferred`: the member who lost the character. */
+  previousOwnerId?: string;
+}

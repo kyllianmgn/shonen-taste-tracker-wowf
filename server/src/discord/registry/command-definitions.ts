@@ -50,7 +50,14 @@ const builders = [
   // --- Player -------------------------------------------------------------
   command('lier', 'Relier ton compte au bot')
     .addSubcommand((s) => s.setName('appli').setDescription("Obtenir un code d'appairage pour l'appli compagnon"))
-    .addSubcommand((s) => s.setName('battlenet').setDescription('Relier ton compte Battle.net')),
+    .addSubcommand((s) =>
+      s
+        .setName('battlenet')
+        .setDescription('Relier ton compte Battle.net')
+        .addStringOption((o) =>
+          o.setName('region').setDescription('Région du compte (EU par défaut)').addChoices(...REGION_CHOICES),
+        ),
+    ),
 
   command('perso', 'Gérer tes persos suivis')
     .addSubcommand((s) => characterOptions(s.setName('ajouter').setDescription('Ajouter un perso à suivre')))
