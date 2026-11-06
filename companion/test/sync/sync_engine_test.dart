@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forevertracker_sync/api/api_error.dart';
 import 'package:forevertracker_sync/api/api_models.dart';
-import 'package:forevertracker_sync/api/companion_api.dart';
 import 'package:forevertracker_sync/api/device_token.dart';
 import 'package:forevertracker_sync/process/game_detector.dart';
+import 'package:forevertracker_sync/queue/offline_queue.dart';
 import 'package:forevertracker_sync/sync/sent_state.dart';
 import 'package:forevertracker_sync/sync/sync_engine.dart';
 import 'package:forevertracker_sync/ui/tray/tray_state.dart' as tray;
@@ -14,65 +14,14 @@ import 'package:forevertracker_sync/wow_files/saved_variables_watcher.dart';
 
 import '../support/contract.dart';
 import '../support/fake_clock.dart';
+import '../support/fake_companion_api.dart';
+import '../support/memory_queue_store.dart';
 import '../support/memory_token_store.dart';
 import '../support/saved_variables_builder.dart';
 
 const _fileA = r'C:\WoW\_forever_\WTF\Account\ACC1\SavedVariables\ForeverTracker.lua';
 const _fileB = r'C:\WoW\_forever_\WTF\Account\ACC2\SavedVariables\ForeverTracker.lua';
 const _guid = 'Player-4242-0A1B2C3D';
-
-/// Fake C-05: records requests (checked against the contract) and answers OK.
-class FakeApi implements CompanionApi {
-  FakeApi(this.clock);
-
-  final FakeClock clock;
-  final heartbeats = <HeartbeatRequest>[];
-  final syncs = <SyncRequest>[];
-  final syncTimes = <DateTime>[];
-  int intervalSec = 600;
-  ApiException? syncError;
-  ApiException? heartbeatError;
-
-  @override
-  Future<HeartbeatResponse> heartbeat(DeviceToken token, HeartbeatRequest request) async {
-    expect(contractErrors('heartbeat.request', jsonDecode(jsonEncode(request.toJson()))), isEmpty);
-    heartbeats.add(request);
-    final e = heartbeatError;
-    if (e != null) throw e;
-    return HeartbeatResponse(heartbeatIntervalSec: intervalSec, serverTime: request.sentAt);
-  }
-
-  @override
-  Future<SyncResponse> sync(DeviceToken token, SyncRequest request) async {
-    expect(contractErrors('sync.request', jsonDecode(jsonEncode(request.toJson()))), isEmpty);
-    syncs.add(request);
-    syncTimes.add(clock.now());
-    final e = syncError;
-    if (e != null) throw e;
-    return SyncResponse(
-      heartbeatIntervalSec: intervalSec,
-      results: [
-        for (final c in request.characters.cast<Map<String, Object?>>())
-          SyncResult(
-            key: CharacterRef.fromJson({
-              for (final k in ['region', 'firstName', 'surname']) k: (c['key'] as Map)[k],
-            }),
-            status: SyncStatus.ok,
-            acceptedEvents: (c['events'] as List).length,
-            duplicateEvents: 0,
-            flags: const [],
-          ),
-      ],
-    );
-  }
-
-  /// Every event id sent, in order, across all syncs.
-  List<String> get sentEventIds => [
-    for (final s in syncs)
-      for (final c in s.characters.cast<Map<String, Object?>>())
-        for (final e in (c['events'] as List).cast<Map<String, Object?>>()) e['id'] as String,
-  ];
-}
 
 class MemorySentStateStore implements SentStateStore {
   Map<String, Object?>? saved;
@@ -89,13 +38,16 @@ class MemorySentStateStore implements SentStateStore {
 
 class Harness {
   Harness() {
-    api = FakeApi(clock);
+    api = FakeCompanionApi(clock);
   }
 
   final clock = FakeClock();
-  late final FakeApi api;
+  late final FakeCompanionApi api;
   final tokens = MemoryTokenStore()..token = const DeviceToken('tok');
   final store = MemorySentStateStore();
+  final queueStore = MemoryQueueStore();
+  final notifier = RecordingNotifier();
+  late OfflineQueue queue;
   final files = <String, String>{};
   final fileEvents = StreamController<FileReady>.broadcast();
   final gameEvents = StreamController<GameEvent>.broadcast();
@@ -105,11 +57,20 @@ class Harness {
   int get unix => clock.now().millisecondsSinceEpoch ~/ 1000;
 
   Future<void> start() async {
+    queue = OfflineQueue(
+      api: api,
+      tokens: tokens,
+      store: queueStore,
+      emit: tray_.add,
+      notifier: notifier,
+      now: clock.now,
+      timer: clock.timer,
+    );
+    await queue.start();
     engine = SyncEngine(
       files: fileEvents.stream,
       game: gameEvents.stream,
-      api: api,
-      tokens: tokens,
+      sender: queue,
       sentState: store,
       syncRequestSchema: contractSchemaJson('sync.request'),
       listFiles: () async => files.keys.toList(),
@@ -141,6 +102,7 @@ class Harness {
 
   Future<void> dispose() async {
     await engine.dispose();
+    await queue.dispose();
     await fileEvents.close();
     await gameEvents.close();
   }
@@ -262,6 +224,7 @@ void main() {
       ];
       await h.write(_fileA, chars);
       await h.engine.dispose();
+      await h.queue.dispose();
 
       await h.start();
       await h.clock.elapse(const Duration(minutes: 1));
@@ -270,7 +233,7 @@ void main() {
       expect(h.api.syncs, hasLength(1));
     });
 
-    test('a failed sync is sent again on the next change', () async {
+    test('a failed sync goes to the queue and is not planned again', () async {
       await h.start();
       final a = _ev('SESSION_START', h.unix, 1);
       h.api.syncError = const ServerError(503);
@@ -278,15 +241,20 @@ void main() {
         TestCharacter(capturedAt: h.unix, level: 5, events: [a]),
       ]);
       expect(h.tray_.whereType<tray.SendFailed>(), hasLength(1));
+      expect(h.queue.length, 1);
+
+      // The same file again, still failing: nothing new to plan.
+      await h.clock.elapse(const Duration(seconds: 2));
+      await h.write(_fileA, [
+        TestCharacter(capturedAt: h.unix - 2, level: 5, events: [a]),
+      ]);
+      await h.clock.elapse(const Duration(seconds: 1));
+      expect(h.api.syncs, hasLength(1));
 
       h.api.syncError = null;
-      await h.clock.elapse(const Duration(minutes: 1));
-      await h.write(_fileA, [
-        TestCharacter(capturedAt: h.unix, level: 5, events: [a]),
-      ]);
-
-      expect(h.api.sentEventIds, [a.id, a.id]);
-      expect(h.store.saved, isNotNull);
+      await h.clock.elapse(const Duration(seconds: 2)); // replay at 5 s
+      expect(h.api.deliveredEventIds, [a.id]);
+      expect(h.queue.length, 0);
     });
   });
 
@@ -411,12 +379,84 @@ void main() {
       expect(h.api.heartbeats.single.lastCharacter?.firstName, 'Morwen');
     });
 
-    test('a 401 is reported to the tray', () async {
+    test('a 401 stops every send and notifies once', () async {
       h.api.heartbeatError = const InvalidToken();
       await h.start();
       await h.game(const GameStarted());
 
       expect(h.tray_.whereType<tray.Unauthorized>(), hasLength(1));
+      expect(h.notifier.shown, hasLength(1));
+
+      await h.write(_fileA, [TestCharacter(capturedAt: h.unix, level: 5)]);
+      await h.clock.elapse(const Duration(hours: 1));
+      expect(h.api.heartbeats, hasLength(1));
+      expect(h.api.syncs, isEmpty);
+      expect(h.notifier.shown, hasLength(1));
+    });
+
+    test('use the interval of a replayed response', () async {
+      await h.start();
+      h.api.down = true;
+      await h.game(const GameStarted());
+      h.api.down = false;
+      h.api.intervalSec = 120;
+      await h.clock.elapse(const Duration(seconds: 5)); // replayed heartbeat
+      expect(h.api.delivered, hasLength(1));
+
+      // The timer set before the replay still fires at 600 s; the next ones use 120 s.
+      await h.clock.elapse(const Duration(seconds: 595));
+      expect(h.api.delivered, hasLength(2));
+      await h.clock.elapse(const Duration(seconds: 119));
+      expect(h.api.delivered, hasLength(2));
+      await h.clock.elapse(const Duration(seconds: 1));
+      expect(h.api.delivered, hasLength(3));
+    });
+  });
+
+  group('network cut then back', () {
+    test('every event reaches the server once, in order, with the game running', () async {
+      await h.start();
+      final t0 = h.unix;
+      final login = _ev('SESSION_START', t0, 1);
+      var davina = TestCharacter(capturedAt: t0, level: 22, events: [login]);
+      await h.game(const GameStarted());
+      await h.write(_fileA, [davina]);
+      expect(h.api.deliveredEventIds, [login.id]);
+
+      // The box loses the network; the player levels up twice and logs out.
+      h.api.down = true;
+      final events = [login];
+      for (var i = 2; i <= 4; i++) {
+        await h.clock.elapse(const Duration(minutes: 4));
+        events.add(_ev('LEVEL_UP', h.unix, i));
+        davina = davina.copyWith(capturedAt: h.unix, level: 21 + i, events: [...events]);
+        await h.write(_fileA, [davina]);
+      }
+      await h.clock.elapse(const Duration(minutes: 1));
+      await h.game(const GameStopped());
+      events.add(_ev('SESSION_END', h.unix, 5));
+      davina = davina.copyWith(capturedAt: h.unix, events: [...events]);
+      await h.write(_fileA, [davina]);
+      expect(h.api.deliveredEventIds, [login.id]);
+      expect(h.tray_.last, isA<tray.SendFailed>());
+
+      // Back online: the queue drains at its next retry.
+      h.api.down = false;
+      await h.clock.elapse(const Duration(minutes: 10));
+
+      expect(h.queue.length, 0);
+      expect(h.api.deliveredEventIds, [for (final e in events) e.id]);
+      expect(h.api.deliveredEventIds.toSet(), hasLength(h.api.deliveredEventIds.length));
+      final heartbeats = h.api.delivered.where((d) => d.kind == 'heartbeat').toList();
+      expect(h.api.heartbeats.last.gameRunning, isFalse);
+      expect(heartbeats.length, greaterThanOrEqualTo(2));
+      // The order of the sends is kept: each sync's snapshot is newer than the one before.
+      final levels = [
+        for (final s in h.api.deliveredSyncs)
+          ((s.characters.single as Map)['snapshot'] as Map)['level'],
+      ];
+      expect(levels, [22, 23, 24, 25, 25]);
+      expect(h.tray_.last, isA<tray.SendSucceeded>());
     });
   });
 
