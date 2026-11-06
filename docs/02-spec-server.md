@@ -293,6 +293,14 @@ Comportement de `/perso` (S-06, règles dans `core/characters/character.service.
 - Autocomplétion de `perso` : les persos du joueur (tous sauf le principal pour `principal`, les suivis pour `retirer`), valeur = id du perso. Un texte tapé à la main est aussi accepté s'il désigne un seul perso (« Prénom Nom » ou « Prénom Nom (EU) »).
 - `/perso liste` : principal, secondaire puis non suivis ; dernière synchro = réception du dernier snapshot, en heure relative Discord.
 
+Comportement de `/profil`, `/session` et `/classement` (S-14, rendu pur dans `discord/render/profile.ts`, lectures dans `discord/profile/profile-query.service.ts`) :
+
+- Réponses publiques ; les mentions ne notifient personne. Un membre sans ligne `membership` sur ce serveur n'est pas affiché (« aucun perso suivi sur ce serveur »).
+- `/profil` : seuls les persos suivis (principal, secondaire) ; sans `perso`, le principal, ou un message demandant l'option s'il n'y en a pas. Autocomplétion de `perso` : les persos suivis du `membre` choisi (l'auteur par défaut). Barre d'XP de 10 segments sur l'XP du niveau (rien au 60) ; or en po / pa / pc ; zone « sous-zone, zone » ; réputations `standing` ≥ 6 (Honoré, Révéré, Exalté), 10 au plus ; 10 derniers `LEVEL_UP` non flagués avec leur date ; heure de la dernière synchro.
+- `/session` : la session ouverte, sinon la dernière session terminée qui aurait un récap (on saute celles de moins de 2 min sans changement de niveau ni d'or). Morts = événements `DEATH` non flagués de la période ; zone = dernier snapshot de la période.
+- `/classement` : principal de chaque membre du serveur, dernier snapshot. Niveau (égalité départagée par l'XP), temps joué, rythme = (niveau − 1) / heures jouées pour les persos d'au moins 1 h de jeu, or, morts = compteur `deaths` de l'addon. Un perso sans la valeur du critère n'est pas classé.
+- Confidentialité : `hide_money` retire l'or de `/profil` et `/session` et le joueur du classement par or (il reste dans les autres) ; `hide_zone` retire la zone ; `hide_presence` retire l'heure de synchro, les heures de session et la session en cours.
+
 ### Admin (permission Gérer le serveur)
 
 | Commande | Options | Comportement |
