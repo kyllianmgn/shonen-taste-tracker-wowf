@@ -33,8 +33,13 @@ const admin = (name: string, description: string) =>
 /** Options shared by /perso ajouter and /admin perso. */
 const characterOptions = (s: SlashCommandSubcommandBuilder) =>
   s
-    .addStringOption((o) => o.setName('prenom').setDescription('Prénom du perso').setRequired(true).setMaxLength(64))
-    .addStringOption((o) => o.setName('nom').setDescription('Nom de famille du perso').setRequired(true).setMaxLength(64))
+    // 2-12 characters, as the contract and the game (docs/02 « Règles de validation »).
+    .addStringOption((o) =>
+      o.setName('prenom').setDescription('Prénom du perso').setRequired(true).setMinLength(2).setMaxLength(12),
+    )
+    .addStringOption((o) =>
+      o.setName('nom').setDescription('Nom de famille du perso').setRequired(true).setMinLength(2).setMaxLength(12),
+    )
     .addStringOption((o) => o.setName('region').setDescription('Région du compte (EU par défaut)').addChoices(...REGION_CHOICES))
     .addStringOption((o) => o.setName('role').setDescription('Perso principal ou secondaire').addChoices(...ROLE_CHOICES));
 

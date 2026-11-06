@@ -77,7 +77,11 @@ describe('setMainReply', () => {
     );
     expect(setMainReply({ status: 'not_found' })).toBe(PERSO_MSG.notFound);
     expect(
-      setMainReply({ status: 'too_many', character: celia, tracked: [owned(davina, 'main'), owned(borek, 'alt')] }),
+      setMainReply({
+        status: 'too_many',
+        character: { id: 3n, ...celia },
+        tracked: [owned(davina, 'main'), owned(borek, 'alt')],
+      }),
     ).toBe(
       '❌ Tu suis déjà 2 persos, le maximum : **Davina Asaria** (EU, principal) et **Borek Tanu** (EU, secondaire). Retire ton secondaire avec /perso retirer, puis relance /perso principal.',
     );
@@ -110,7 +114,7 @@ describe('listReply', () => {
     expect(text).toBe(
       [
         '**Tes persos**',
-        '⭐ **Davina Asaria** (EU) · principal · dernière synchro <t:1762027200:R> · ✅ vérifié Battle.net',
+        '⭐ **Davina Asaria** (EU) · principal · dernière synchro <t:1793563200:R> · ✅ vérifié Battle.net',
         '🔹 **Borek Tanu** (EU) · secondaire · jamais synchronisé · non vérifié Battle.net',
         '▫️ **Oldie Tanu** (US) · non suivi · jamais synchronisé · non vérifié Battle.net',
       ].join('\n'),
