@@ -139,6 +139,14 @@ describe('slash command definitions (docs/02 « Commandes Discord »)', () => {
       ]);
     });
 
+    it('/perso ajouter and /admin perso limit prenom and nom to 2-12 characters (docs/02 « Règles de validation »)', () => {
+      for (const options of [sub('perso', 'ajouter').options, sub('admin', 'perso').options]) {
+        for (const name of ['prenom', 'nom']) {
+          expect(options?.find((o) => o.name === name)).toMatchObject({ min_length: 2, max_length: 12 });
+        }
+      }
+    });
+
     it('/perso principal and /perso retirer take an autocompleted perso', () => {
       for (const name of ['principal', 'retirer']) {
         expect(shape(sub('perso', name).options)).toEqual([
