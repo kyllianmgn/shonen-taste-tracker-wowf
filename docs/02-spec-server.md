@@ -94,6 +94,18 @@ POST /v1/sync
 
 `status` par perso : `ok` · `untracked` (perso du joueur mais au-delà de ses deux persos suivis : stocké, pas affiché) · `owned_by_other` (déjà rattaché à un autre membre : rien stocké) · `rejected` (validation échouée, détail dans `flags`).
 
+Comportement (S-08) :
+
+- Ordre des contrôles : jeton et limite de débit, taille (512 Kio, `413 payload_too_large`), `schema` numérique différent de 1 → `422 unknown_schema`, puis `sync.request.json` → `400 validation_failed`. Chaque perso est ensuite traité seul, dans sa propre transaction : un perso refusé n'empêche pas les autres.
+- Flags de refus (`rejected` ; rien n'est stocké pour ce perso : ni rattachement, ni snapshot, ni événement) : `future_timestamp` (`capturedAt` ou un `at` à plus de 5 min dans le futur), `level_above_cap` (niveau au-delà de `LEVEL_CAP`), `regression`.
+- Snapshot pas plus récent que le dernier stocké (`capturedAt` inférieur **ou égal**) : ignoré, pas de nouveau snapshot ; ses événements nouveaux sont quand même enregistrés (file hors ligne vidée en retard).
+- Rattachement : un perso inconnu ou sans propriétaire prend le premier rôle libre du propriétaire de l'appareil (principal, puis secondaire), sinon `untracked`. Un perso du joueur garde son rôle ; un perso `untracked` répond `untracked` mais tout est stocké. La recherche ignore la casse ; la `key` de la réponse reprend celle envoyée.
+- Un snapshot stocké met à jour `guid`, `realm_name`, `class_file`, `race_file` et `faction` du perso. Les champs sans colonne (équipement, métiers, réputations, `rested`, `playedLevel`…) vont dans `detail`.
+- `suspect_level_jump` est posé sur le snapshot **et** sur les événements de la même synchro : enregistrés, jamais publiés.
+- Un événement déjà connu, ou répété dans le même envoi, compte dans `duplicateEvents`.
+- Après chaque transaction validée : `character.updated` si un snapshot a été stocké, `event.recorded` pour chaque événement nouveau (dans l'ordre de l'addon). Les deux portent `characterId`, `ownerId`, `role`, `source` et `flags` ; les doublons n'émettent rien. Bus : `@nestjs/event-emitter` (noms dans `SYNC_EVENTS`, `server/src/ingest/sync/sync.events.ts`).
+- `SyncService.ingest` prend une `source` : `app` pour `POST /v1/sync`, `manual` pour `/sync` (S-19).
+
 ### Règles de validation
 
 - `region` ∈ `eu`, `us`, `kr`, `tw` ; prénom et nom 2-12 caractères ; `level` entre 1 et `LEVEL_CAP` (60).
