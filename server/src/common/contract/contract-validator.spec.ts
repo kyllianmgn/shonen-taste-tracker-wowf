@@ -51,6 +51,12 @@ describe('ContractValidator', () => {
     expect(validator.schemaNames().sort()).toEqual(files);
   });
 
+  it('hands out a raw schema as read from contract/schemas (Lua normalization needs it)', () => {
+    const raw = JSON.parse(readFileSync(join(CONTRACT_DIR, 'schemas', 'sync.request.json'), 'utf8')) as unknown;
+
+    expect(validator.schema('sync.request')).toEqual(raw);
+  });
+
   const fixtures = readdirSync(FIXTURES_DIR).filter((f) => f.endsWith('.json'));
 
   it('finds the JSON fixtures', () => {
