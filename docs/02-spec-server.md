@@ -466,6 +466,15 @@ Battle.net ne fournit pas d'événements : le serveur compare deux relevés succ
 - `fichier` : pièce jointe de 512 Ko maximum, parsée avec le même parseur de littéraux Lua que l'appli (jamais exécutée).
 - Seuls les persos du membre sont acceptés ; mêmes statuts et flags que le contrat d'échange.
 
+Comportement (S-19, `server/src/ingest/share-code/`, `discord/commands/sync.ts`) :
+
+- Il faut exactement une des deux options ; sinon un rappel d'utilisation, qui ne compte pas comme un essai.
+- Limite : un essai par membre toutes les 2 min (fenêtre glissante en mémoire, comme les limites `/v1`). Elle est vérifiée avant tout téléchargement ou décodage : un code illisible ou un fichier refusé compte aussi.
+- `code` : espaces et retours à la ligne autour ignorés ; `FT1:` puis uniquement l'alphabet base64url, sinon « pas un code ForeverTracker ». Inflate plafonné à 512 Kio (au-delà : « trop gros »). Deflate ou JSON illisible : « code illisible ». Puis `schema` numérique différent de 1 → « version inconnue », et `share-code.payload.json` (le premier champ fautif est nommé). Le perso est envoyé à `SyncService.ingest` comme une synchro d'un seul perso, `sentAt` du code.
+- `fichier` : refusé au-delà de 512 Kio d'après la taille annoncée par Discord, puis pendant la lecture. Seules les URL `https://cdn.discordapp.com` et `media.discordapp.net` sont téléchargées (sans suivre de redirection, 10 s maximum). Expression non littérale → « fichier refusé », autre erreur de syntaxe → « fichier illisible », `ForeverTrackerDB` nil ou sans perso → « aucun perso ». Tous les persos du fichier sont envoyés (`sentAt` = heure du serveur) et validés par `sync.request.json`.
+- Un envoi valide crée au besoin les lignes `player`, `guild_config` (valeurs par défaut) et `membership` du serveur courant, comme `/lier`, puis appelle `SyncService.ingest` avec la source `manual`. Rien n'est créé pour un envoi refusé.
+- Réponse : une ligne de résumé (persos mis à jour = `ok` ou `untracked`, événements acceptés, doublons), puis une ligne par perso : `ok`, `untracked` (non suivi), `owned_by_other` (rien enregistré), `rejected` avec ses flags en clair, et `suspect_level_jump` signalé comme enregistré mais pas annoncé.
+
 ### Affichage en mode de base
 
 - Pas de pastille verte : le tableau affiche « vu il y a X » (dernier `last_login_timestamp` ou dernière donnée reçue) et une mention discrète « mode de base ».
