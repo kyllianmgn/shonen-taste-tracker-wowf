@@ -13,6 +13,7 @@ const TICK_MS = 5_000;
 function player(index: number, level = 10): BoardPlayer {
   return {
     discordUserId: `1000000000000000${String(index).padStart(2, '0')}`,
+    mode: 'app',
     privacy: { hideZone: false, hidePresence: false },
     presence: { online: false, lastSeenAt: null },
     main: {

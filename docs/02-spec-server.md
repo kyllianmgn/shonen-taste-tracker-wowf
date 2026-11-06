@@ -373,7 +373,7 @@ Comportement (S-12) :
 - Messages : les messages existants sont édités dans l'ordre, ceux en trop supprimés (depuis la fin), les manquants créés ; `board_message_ids` est réécrit seulement s'il change, même après un échec en cours de route. Un `10008` sur le message n°i supprime les messages suivants et republie à partir de i, pour garder l'ordre ; un `10008` à la suppression est ignoré.
 - Désactiver le tableau = `board_channel_id` à null et `board_message_ids` vidé (le reste de `guild_config` est gardé) ; plus aucun envoi jusqu'au prochain `/setup`. Message dans le salon logs (sans mention), s'il existe.
 - Autre erreur (réseau, 5xx…) : le serveur reste marqué et l'essai suivant attend le délai minimum. Les `429` sont gérés par la file REST de discord.js.
-- Présence sur le tableau : en ligne si un appareil non révoqué a `game_running` et un battement de moins de 2,5 × `HEARTBEAT_INTERVAL_SEC` ; « vu » = dernier battement de tous ses appareils.
+- Présence sur le tableau : mode du joueur selon `playerMode` (S-18). Mode appli : en ligne si un appareil non révoqué a `game_running` et un battement de moins de 2,5 × `HEARTBEAT_INTERVAL_SEC` ; « vu » = dernier battement de tous ses appareils. Mode de base : jamais en ligne ; « vu » = donnée la plus récente entre le dernier battement et le `received_at` du dernier snapshot du principal ou du secondaire (`last_login_timestamp` n'est stocké nulle part pour l'instant).
 
 ### Logs
 

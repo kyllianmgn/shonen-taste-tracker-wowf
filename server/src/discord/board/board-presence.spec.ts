@@ -31,6 +31,14 @@ describe('boardPresence', () => {
     expect(boardPresence(devices, NOW, HEARTBEAT_SEC)).toEqual({ online: false, lastSeenAt: minutesAgo(1) });
   });
 
+  it('counts the latest data received in « vu » when given', () => {
+    const devices = [{ gameRunning: false, lastSeenAt: minutesAgo(90), revokedAt: null }];
+
+    expect(boardPresence(devices, NOW, HEARTBEAT_SEC, minutesAgo(30)).lastSeenAt).toEqual(minutesAgo(30));
+    expect(boardPresence(devices, NOW, HEARTBEAT_SEC, minutesAgo(120)).lastSeenAt).toEqual(minutesAgo(90));
+    expect(boardPresence([], NOW, HEARTBEAT_SEC, minutesAgo(30))).toEqual({ online: false, lastSeenAt: minutesAgo(30) });
+  });
+
   it('ignores revoked devices for the status but keeps their last heartbeat', () => {
     const devices = [{ gameRunning: true, lastSeenAt: minutesAgo(1), revokedAt: minutesAgo(0) }];
 

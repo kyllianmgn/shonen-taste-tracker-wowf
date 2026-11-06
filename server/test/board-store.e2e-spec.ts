@@ -86,6 +86,7 @@ describe('PrismaBoardStore (e2e)', () => {
     expect(players).toEqual([
       {
         discordUserId: ALICE,
+        mode: 'app',
         privacy: { hideZone: true, hidePresence: false },
         presence: { online: true, lastSeenAt: new Date(NOW.getTime() - 60_000) },
         main: {
@@ -98,12 +99,35 @@ describe('PrismaBoardStore (e2e)', () => {
       },
       {
         discordUserId: BOB,
+        mode: 'base',
         privacy: { hideZone: false, hidePresence: true },
         presence: { online: false, lastSeenAt: null },
         main: null,
         alt: null,
       },
     ]);
+  });
+
+  it('base mode: never online, « vu » is the latest data received (snapshot or old heartbeat)', async () => {
+    const eightDaysAgo = new Date(NOW.getTime() - 8 * 86_400_000);
+    const twoDaysAgo = new Date(NOW.getTime() - 2 * 86_400_000);
+    await prisma.device.create({
+      data: { ownerId: BOB, tokenSha256: 'b'.repeat(64), gameRunning: true, lastSeenAt: eightDaysAgo },
+    });
+    const main = await prisma.character.create({
+      data: { region: 'eu', firstName: 'Ilsa', surname: 'Ventbrume', ownerId: BOB, role: 'main' },
+    });
+    const snapshot = await prisma.snapshot.create({
+      data: { characterId: main.id, capturedAt: twoDaysAgo, receivedAt: twoDaysAgo, level: 19, detail: {}, source: 'bnet_account' },
+    });
+    await prisma.character.update({ where: { id: main.id }, data: { lastSnapshotId: snapshot.id } });
+
+    const board = await store.load(GUILD, NOW);
+
+    expect(board?.input.players.find((p) => p.discordUserId === BOB)).toMatchObject({
+      mode: 'base',
+      presence: { online: false, lastSeenAt: twoDaysAgo },
+    });
   });
 
   it('falls back to the level sort for an unknown board_sort', async () => {
