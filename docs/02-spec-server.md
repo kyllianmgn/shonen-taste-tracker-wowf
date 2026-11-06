@@ -263,6 +263,15 @@ Slash commands uniquement, enregistrées globalement ; intents `Guilds` seulemen
 
 Les valeurs masquées par `/confidentialite` ne sortent ni dans `/profil`, ni dans `/classement`, ni dans le tableau, ni dans les logs.
 
+Comportement de `/perso` (S-06, règles dans `core/characters/character.service.ts`) :
+
+- Noms : 2 à 12 lettres chacun (limite aussi posée sur les options Discord). Un perso créé par la commande est stocké en NFC, sans espaces autour, première lettre en majuscule et le reste en minuscules ; un perso déjà connu garde ses noms stockés. La recherche ignore la casse (`lower()` comme l'index unique).
+- `/perso ajouter` sans `role` donne le premier rôle libre : principal, sinon secondaire. Refus, sans rien créer : perso possédé par un autre membre (même `untracked`), rôle demandé déjà pris (on nomme le perso qui l'occupe et on propose de l'ajouter dans l'autre rôle puis `/perso principal`), ou 2 persos déjà suivis. Un perso sans propriétaire est rattaché ; un perso `untracked` du joueur est repris ; un perso déjà suivi par le joueur répond « déjà ton perso … » sans changer son rôle.
+- La ligne `membership` du serveur courant (et `guild_config` avec ses valeurs par défaut si `/setup` n'a jamais tourné) n'est créée que si `/perso ajouter` réussit ou si le perso était déjà suivi.
+- `/perso principal` sur un secondaire échange les deux rôles ; sur un perso `untracked`, l'ancien principal passe secondaire si la place est libre, sinon refus (« retire ton secondaire »). `/perso retirer` garde le propriétaire et libère le rôle.
+- Autocomplétion de `perso` : les persos du joueur (tous sauf le principal pour `principal`, les suivis pour `retirer`), valeur = id du perso. Un texte tapé à la main est aussi accepté s'il désigne un seul perso (« Prénom Nom » ou « Prénom Nom (EU) »).
+- `/perso liste` : principal, secondaire puis non suivis ; dernière synchro = réception du dernier snapshot, en heure relative Discord.
+
 ### Admin (permission Gérer le serveur)
 
 | Commande | Options | Comportement |
