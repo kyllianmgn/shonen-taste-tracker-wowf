@@ -44,6 +44,8 @@ Core.lua
 Collect.lua
 Journal.lua
 Sync.lua
+libs/LibDeflate/LibDeflate.lua
+Share.lua
 Commands.lua
 Bindings.xml
 ```
@@ -180,6 +182,16 @@ Pour les joueurs sans appli. `/ftr share` ouvre une fenêtre avec une zone de te
 - Taille visée : moins de 4 000 caractères ; au-delà, retirer `equipment` puis `reputations` et le signaler dans la fenêtre.
 - Alternative sans copier-coller : joindre le fichier `ForeverTracker.lua` à `/sync fichier:`.
 
+Détails d'implémentation (A-06) :
+
+- Code = `FT1:` + base64url **sans remplissage `=`** (alphabet RFC 4648 §5) du deflate brut (sans en-tête zlib, `LibDeflate:CompressDeflate`, niveau 9) du JSON. Décodage côté serveur : `Buffer.from(corps, 'base64url')` puis `zlib.inflateRawSync`. Code de référence produit par l'addon : `contract/fixtures/share-code.sample.txt` (régénéré par `python addon/tests/share_fixture.py`, un test vérifie qu'il est à jour).
+- JSON compact, clés d'objet triées, UTF-8 tel quel ; `"`, `\` et les caractères de contrôle (0-31, 127) échappés. Seuls `character.events`, `equipment`, `professions` et `reputations` sont des tableaux (`[]` s'ils sont vides) ; toute autre table, `data` d'un événement compris, est un objet (`{}`). Les nombres entiers s'écrivent sans partie décimale.
+- Seuls les champs du schéma `share-code.payload.json` sont copiés (`additionalProperties: false`) ; le snapshot est recalculé (`ns.CollectSnapshot()`) avant l'encodage.
+- `lastSharedAt` est une table `GUID → horodatage` au premier niveau de `ForeverTrackerDB`, pas dans l'entrée du perso : `characters[guid]` est validé avec `additionalProperties: false` par l'appli et `/sync fichier:`. Les événements envoyés sont ceux dont `at >= lastSharedAt` (tous s'il est absent) : un événement de la même seconde qu'un partage est renvoyé plutôt que perdu, le serveur déduplique par `id`. Au plus 500 événements (les plus récents). `lastSharedAt` est mis à jour à chaque ouverture de la fenêtre et écrit dans le fichier au prochain rechargement.
+- Au-delà de 4 000 caractères : `equipment` est retiré, puis `reputations` si c'est encore trop long (le snapshot sauvegardé n'est pas modifié). La fenêtre l'indique (« Code raccourci : … »). Si le code dépasse encore 4 000 caractères (journal très long), il est quand même affiché, avec un message qui propose `/sync fichier:`.
+- La zone de texte est en lecture seule (une frappe remet le code, sélectionné), se resélectionne au clic et Échap ferme la fenêtre. Pas de nom global ; modèle supplémentaire à contrôler en jeu (A-07) : `UIPanelScrollFrameTemplate`.
+- LibDeflate 1.0.2 est embarquée dans `libs/LibDeflate/` avec sa licence (zlib). Le client ignore la valeur renvoyée par un fichier du TOC et l'addon ne crée pas de globale ni n'embarque LibStub : un court bloc, marqué « ForeverTracker modification » en fin de fichier, range la bibliothèque dans `ns.LibDeflate` (détails dans `libs/LibDeflate/README.md`). Si un autre addon a déjà enregistré LibDeflate 1.0.2+ dans LibStub, elle est prise là.
+
 ## Addon : format des SavedVariables
 
 C'est le contrat entre l'addon et l'appli. Tout changement incompatible incrémente `schema` ; l'appli refuse un `schema` qu'elle ne connaît pas et le signale.
@@ -189,6 +201,7 @@ ForeverTrackerDB = {
   ["schema"] = 1,
   ["addonVersion"] = "0.1.0",
   ["settings"] = { ["interval"] = 15, ["levelPrompt"] = true, ["debug"] = false },
+  ["lastSharedAt"] = { ["Player-4242-0A1B2C3D"] = 1793899500 }, -- /ftr share, absent tant qu'aucun partage
   ["characters"] = {
     ["Player-4242-0A1B2C3D"] = {
       ["key"] = { ["region"] = "eu", ["firstName"] = "Davina", ["surname"] = "Asaria",
@@ -219,6 +232,7 @@ Valeurs d'exemple, pas des données réelles. Règles :
 - Les clés de premier niveau de `characters` sont des GUID ; `key` reprend l'identité complète.
 - `money` en cuivre, durées en secondes, horodatages en secondes Unix serveur.
 - Le fichier peut être rechargé vide par le client (bug de chargement vu en bêta) : l'addon recrée alors la structure sans erreur, et le serveur reste la source de l'historique.
+- `lastSharedAt` (A-06) ne sert qu'à l'addon ; l'appli et le serveur ne lisent que `schema`, `addonVersion` et `characters`.
 - Pas de fonction, de référence circulaire ni de clé non-chaîne/non-entier : le parseur de l'appli n'a pas à gérer plus que des tables, chaînes, nombres et booléens.
 
 ## Appli compagnon (ForeverTracker Sync)

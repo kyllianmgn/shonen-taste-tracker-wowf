@@ -72,6 +72,13 @@ def test_example(wow):
   `wow.wow.cancelPopup(name)` click its first or second button.
 - Frames record `SetText` / `SetChecked`, other layout methods are no-ops; `CreateFontString()` returns
   a region that answers `GetText()`. `UIParent` exists.
+- EditBox: `SetFocus` / `ClearFocus` set `box.focused`, `HighlightText()` sets `box.highlighted`
+  (`first = 0, last = -1` for the whole text); `wow.wow.typeText(box, text)` simulates typing
+  (`OnTextChanged` with `userInput = true`) and `wow.wow.pressEscape(box)` runs `OnEscapePressed`.
+- `share_fixture.py` holds the scenario of `contract/fixtures/share-code.sample.txt` (the reference
+  `/ftr share` code the server decodes) and `decode_share_code()`; after a change of `Share.lua`,
+  regenerate the fixture with `python addon/tests/share_fixture.py`. `test_share.py` validates codes
+  against `contract/schemas/share-code.payload.json` with `jsonschema`.
 - `Bindings.xml` and other XML files are skipped by the loader (it runs only `.lua` files); use
   `wow.press_binding` to run a binding.
 - `load_saved_variables` executes the file like the game client does. Use it only with fixtures from
