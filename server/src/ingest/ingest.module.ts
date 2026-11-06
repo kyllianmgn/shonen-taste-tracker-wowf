@@ -4,7 +4,9 @@ import { ApiExceptionFilter } from './api/api-exception.filter';
 import { DeviceAuthGuard } from './auth/device-auth.guard';
 import { RateLimitGuard } from './auth/rate-limit.guard';
 import { SlidingWindowLimiter } from './auth/sliding-window-limiter';
+import { PresenceModule } from '../presence/presence.module';
 import { INGEST_CLOCK, systemClock } from './clock';
+import { HeartbeatController } from './heartbeat/heartbeat.controller';
 import { DevicesController } from './pairing/devices.controller';
 import { PairingService } from './pairing/pairing.service';
 import { SyncController } from './sync/sync.controller';
@@ -16,7 +18,8 @@ import { SyncService } from './sync/sync.service';
  * declare them in this module, or in a module that imports it.
  */
 @Module({
-  controllers: [DevicesController, SyncController],
+  imports: [PresenceModule],
+  controllers: [DevicesController, SyncController, HeartbeatController],
   providers: [
     { provide: INGEST_CLOCK, useValue: systemClock },
     // One limiter for the process: every route's budget lives here.
