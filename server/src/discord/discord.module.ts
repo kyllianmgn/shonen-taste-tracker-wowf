@@ -1,5 +1,11 @@
 import { Module } from '@nestjs/common';
 import { Client, GatewayIntentBits } from 'discord.js';
+import type { AppConfig } from '../common/config/config';
+import { APP_CONFIG } from '../common/config/config.constants';
+import { BoardEventsListener } from './board/board-events.listener';
+import { BOARD_STORE, type BoardStore } from './board/board-ports';
+import { BoardPublisher } from './board/board-publisher';
+import { PrismaBoardStore } from './board/prisma-board.store';
 import { DISCORD_CLIENT, DiscordClientService } from './client/discord-client.service';
 import { BNET_LINK_NOTIFIER } from '../bnet/oauth/link-notifier';
 import { DiscordBnetLinkNotifier } from './bnet-link/discord-bnet-link-notifier';
@@ -22,7 +28,18 @@ import { GUILD_CONFIG_STORE, SetupService } from './setup/setup.service';
     ProfileQueryService,
     DiscordClientService,
     { provide: BNET_LINK_NOTIFIER, useClass: DiscordBnetLinkNotifier },
+    { provide: BOARD_STORE, useClass: PrismaBoardStore },
+    {
+      provide: BoardPublisher,
+      inject: [BOARD_STORE, DISCORD_CLIENT, APP_CONFIG],
+      useFactory: (store: BoardStore, client: Client, config: AppConfig) =>
+        new BoardPublisher(store, client.rest, {
+          minEditIntervalMs: config.boardMinEditIntervalSec * 1000,
+          now: () => Date.now(),
+        }),
+    },
+    BoardEventsListener,
   ],
-  exports: [BNET_LINK_NOTIFIER],
+  exports: [BNET_LINK_NOTIFIER, BoardPublisher],
 })
 export class DiscordModule {}

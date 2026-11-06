@@ -1,4 +1,5 @@
 import { DiscordAPIError, MessageFlags, PermissionFlagsBits, RESTJSONErrorCodes } from 'discord.js';
+import { BoardPublisher } from '../board/board-publisher';
 import { MSG } from '../messages';
 import type { CommandHandler } from '../registry/command-handler';
 import { createSetupGuild } from '../setup/discord-setup-guild';
@@ -25,6 +26,8 @@ export const handlers: CommandHandler[] = [
           boardChannelId: interaction.options.getChannel('tableau')?.id,
           logsChannelId: interaction.options.getChannel('logs')?.id,
         });
+        // The board now shows the provisional message: have the publisher draw the real one.
+        if (outcome.ok) ctx.get(BoardPublisher).invalidate(interaction.guild.id);
         await interaction.editReply({ content: formatSetupReply(outcome) });
       } catch (error) {
         if (error instanceof DiscordAPIError && error.code === RESTJSONErrorCodes.MissingPermissions) {

@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { DiscordModule } from '../discord/discord.module';
 import { PresenceModule } from '../presence/presence.module';
+import { BoardRedrawJob } from './board-redraw.job';
 import { PresenceExpiryJob } from './presence-expiry.job';
 
 /** Scheduled tasks: expiry, board debounce, cleanup (docs/02 « Modules »). */
 @Module({
-  imports: [PresenceModule],
-  providers: [PresenceExpiryJob],
+  imports: [PresenceModule, DiscordModule],
+  providers: [PresenceExpiryJob, BoardRedrawJob],
 })
 export class JobsModule {}
