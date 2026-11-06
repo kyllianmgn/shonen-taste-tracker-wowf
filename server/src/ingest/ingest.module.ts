@@ -7,6 +7,8 @@ import { SlidingWindowLimiter } from './auth/sliding-window-limiter';
 import { INGEST_CLOCK, systemClock } from './clock';
 import { DevicesController } from './pairing/devices.controller';
 import { PairingService } from './pairing/pairing.service';
+import { SyncController } from './sync/sync.controller';
+import { SyncService } from './sync/sync.service';
 
 /**
  * Pairing, heartbeats, syncs, validation, deduplication (docs/02 « Modules »).
@@ -14,16 +16,17 @@ import { PairingService } from './pairing/pairing.service';
  * declare them in this module, or in a module that imports it.
  */
 @Module({
-  controllers: [DevicesController],
+  controllers: [DevicesController, SyncController],
   providers: [
     { provide: INGEST_CLOCK, useValue: systemClock },
     // One limiter for the process: every route's budget lives here.
     { provide: SlidingWindowLimiter, useFactory: () => new SlidingWindowLimiter() },
     { provide: APP_FILTER, useClass: ApiExceptionFilter },
     PairingService,
+    SyncService,
     DeviceAuthGuard,
     RateLimitGuard,
   ],
-  exports: [INGEST_CLOCK, SlidingWindowLimiter, PairingService, DeviceAuthGuard, RateLimitGuard],
+  exports: [INGEST_CLOCK, SlidingWindowLimiter, PairingService, SyncService, DeviceAuthGuard, RateLimitGuard],
 })
 export class IngestModule {}

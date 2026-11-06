@@ -9,6 +9,7 @@
   "dependencies": {
     "@nestjs/common": "11.2.8",
     "@nestjs/core": "11.2.8",
+    "@nestjs/event-emitter": "3.1.0",
     "@nestjs/platform-express": "11.2.8",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",

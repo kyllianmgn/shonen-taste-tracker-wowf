@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BnetModule } from './bnet/bnet.module';
 import { CommonModule } from './common/common.module';
 import type { AppConfig } from './common/config/config';
@@ -16,6 +17,8 @@ export class AppModule {
       module: AppModule,
       imports: [
         CommonModule.register(config),
+        // Internal events between modules: character.updated, event.recorded, session.* (docs/02 « Modules »).
+        EventEmitterModule.forRoot(),
         CoreModule,
         IngestModule,
         PresenceModule,

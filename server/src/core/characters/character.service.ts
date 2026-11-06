@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { retryOnUniqueViolation } from '../../common/prisma/unique-violation';
 import type { Prisma } from '../../generated/prisma/client';
 import { normalizeCharacterName } from './character-name';
 import type {
@@ -184,14 +185,8 @@ export class CharacterService {
       INSERT INTO membership (guild_id, discord_user_id) VALUES (${guildId}, ${ownerId}) ON CONFLICT DO NOTHING`;
   }
 
-  private async withRetry<T>(run: () => Promise<T>): Promise<T> {
-    for (let attempt = 1; ; attempt++) {
-      try {
-        return await run();
-      } catch (error) {
-        if (attempt >= MAX_ATTEMPTS || !isUniqueViolation(error)) throw error;
-      }
-    }
+  private withRetry<T>(run: () => Promise<T>): Promise<T> {
+    return retryOnUniqueViolation(run, MAX_ATTEMPTS);
   }
 }
 
@@ -201,17 +196,3 @@ const toRef = (c: OwnedCharacter): CharacterRef => ({
   firstName: c.firstName,
   surname: c.surname,
 });
-
-/** Postgres 23505, whichever way Prisma or the pg adapter reports it. */
-function isUniqueViolation(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const code = (error as { code?: unknown }).code;
-  if (code === 'P2002' || code === '23505') return true;
-  let details = '';
-  try {
-    details = JSON.stringify(error, (_k, v: unknown) => (typeof v === 'bigint' ? v.toString() : v));
-  } catch {
-    // Unserializable error: fall back to its message.
-  }
-  return /23505|unique constraint/i.test(`${error.message} ${details}`);
-}
