@@ -153,7 +153,7 @@ def test_empty_lists_are_json_arrays_and_event_data_objects(wow, validator):
       key = { guid = "%s" }, snapshot = { level = 23 }, events = {
         { id = "x-1", type = "SESSION_START", at = 1793899000, data = {} },
       } } } }""" % (GUID, GUID)
-    logged_in(wow, saved, professions=[], factions=[], inventory={})
+    logged_in(wow, saved, professions=[], skillLines=[], factions=[], inventory={})
     payload = decode_share_code(share(wow))
     validator.validate(payload)
     snap = payload["character"]["snapshot"]
@@ -196,11 +196,13 @@ def test_snapshot_is_refreshed_before_sharing(wow):
 
 def test_second_share_only_has_events_since_the_first(wow):
     logged_in(wow)
+    wow.advance(10)
     first = decode_share_code(share(wow))["character"]["events"]
     assert [e["type"] for e in first] == ["SESSION_START"]
 
     wow.advance(300)
     wow.fire("PLAYER_DEAD")
+    wow.advance(10)
     second = decode_share_code(share(wow))["character"]["events"]
     assert [e["type"] for e in second] == ["DEATH"]
 
@@ -290,14 +292,26 @@ def test_long_code_then_drops_reputations(wow, validator):
     assert "équipement" in notice(wow) and "réputations" in notice(wow)
 
 
-def test_reputations_alone_too_long_keep_the_equipment(wow):
+def test_equipment_goes_first_even_when_reputations_are_the_long_part(wow):
     rng = random.Random(3)
     link = "|cff1eff00|Hitem:7720::::::::23:::::::|h[Coiffe]|h|r"
     logged_in(wow, inventory={1: link}, factions=big_factions(rng))
     snap = decode_share_code(share(wow))["character"]["snapshot"]
-    # equipment goes first even if it is small: the order is fixed by the spec
+    # the order is fixed by the spec
     assert "equipment" not in snap
     assert "reputations" not in snap
+
+
+def test_without_equipment_only_reputations_are_dropped(wow):
+    rng = random.Random(7)
+    logged_in(wow, factions=big_factions(rng))
+    entry = wow.lua.eval(
+        "function(src) return { key = src.key,"
+        " snapshot = { level = 23, reputations = src.snapshot.reputations }, events = {} } end"
+    )(wow.ns.character)
+    code, dropped = wow.ns.BuildShareCode(entry, None, LOGIN_TIME)
+    assert list(dropped.values()) == ["reputations"]
+    assert len(code) <= MAX_LENGTH
 
 
 def test_code_still_too_long_is_shown_with_a_hint(wow, validator):
