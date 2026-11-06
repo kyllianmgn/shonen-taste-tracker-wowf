@@ -42,9 +42,17 @@ export interface BoardCharacter {
   snapshot: BoardSnapshot | null;
 }
 
+/** `base`: no active device, data from Battle.net or /sync only (docs/02 « Affichage en mode de base »). */
+export type BoardPlayerMode = 'app' | 'base';
+
 export interface BoardPlayer {
   discordUserId: string;
+  mode: BoardPlayerMode;
   privacy: { hideZone: boolean; hidePresence: boolean };
+  /**
+   * App mode: heartbeat presence. Base mode: `online` is ignored and `lastSeenAt` is the last
+   * `last_login_timestamp` or the last data received.
+   */
   presence: { online: boolean; lastSeenAt: Date | null };
   main: BoardCharacter | null;
   alt: BoardCharacter | null;
@@ -94,7 +102,7 @@ export function renderBoard(input: BoardInput): BoardMessagePayload[] {
 }
 
 function isShownOnline(player: BoardPlayer): boolean {
-  return player.presence.online && !player.privacy.hidePresence;
+  return player.mode === 'app' && player.presence.online && !player.privacy.hidePresence;
 }
 
 function renderHeader(players: BoardPlayer[]): string {
@@ -121,10 +129,20 @@ function renderPlayer(player: BoardPlayer): string {
 
 function renderPlayerTitle(player: BoardPlayer): string {
   const mention = `<@${player.discordUserId}>`;
+  if (player.mode === 'base') return renderBaseModeTitle(player, mention);
   if (player.privacy.hidePresence) return mention;
   if (player.presence.online) return `🟢 ${mention}`;
   const seen = player.presence.lastSeenAt;
   return seen ? `⚫ ${mention}${SEP}vu <t:${toUnix(seen)}:R>` : `⚫ ${mention}`;
+}
+
+/** No dot in base mode: presence is unknown, only the age of the last data is. */
+function renderBaseModeTitle(player: BoardPlayer, mention: string): string {
+  const seen = player.privacy.hidePresence ? null : player.presence.lastSeenAt;
+  const parts = [mention];
+  if (seen) parts.push(`vu <t:${toUnix(seen)}:R>`);
+  parts.push('*mode de base*');
+  return parts.join(SEP);
 }
 
 function renderCharacter(character: BoardCharacter, showZone: boolean): string {

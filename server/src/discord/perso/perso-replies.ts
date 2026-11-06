@@ -1,4 +1,4 @@
-import { escapeMarkdown } from 'discord.js';
+import { ButtonStyle, ComponentType, escapeMarkdown, type APIActionRowComponent, type APIButtonComponentWithCustomId } from 'discord.js';
 import { ROLE_LABELS } from '../../core/characters/character-pick';
 import type {
   AddCharacterResult,
@@ -16,7 +16,12 @@ export const PERSO_MSG = {
   invalidName: '❌ Le prénom et le nom doivent faire chacun 2 à 12 lettres, sans espace, chiffre ni signe.',
   notFound: '❌ Perso introuvable parmi les tiens. Choisis-le dans la liste proposée, ou regarde /perso liste.',
   empty: 'Tu ne suis aucun perso. Ajoute-en un avec /perso ajouter.',
+  bnetExpired:
+    '⏳ Ta liaison Battle.net a expiré : le bot ne relève plus ton niveau automatiquement. Relie-toi pour 24 h de plus avec le bouton ci-dessous.',
 } as const;
+
+/** Custom ids of the /perso buttons, handled in commands/perso.ts. */
+export const PERSO_IDS = { relinkBnet: 'perso:relink-bnet' } as const;
 
 const ROLE_ICONS: Record<CharacterRole, string> = { main: '⭐', alt: '🔹', untracked: '▫️' };
 
@@ -84,4 +89,29 @@ export function listReply(characters: readonly OwnedCharacter[]): string {
     return `${ROLE_ICONS[c.role]} ${show(c)} · ${ROLE_LABELS[c.role]} · ${sync} · ${bnet}`;
   });
   return ['**Tes persos**', ...lines].join('\n');
+}
+
+export interface ListMessage {
+  content: string;
+  components?: APIActionRowComponent<APIButtonComponentWithCustomId>[];
+}
+
+/**
+ * /perso liste with, for a base-mode player whose Battle.net token has expired (docs/02 « Sources
+ * et rythme des relevés »), a « Relier Battle.net » button.
+ */
+export function listMessage(characters: readonly OwnedCharacter[], relinkBnet: boolean): ListMessage {
+  const content = listReply(characters);
+  if (!relinkBnet) return { content };
+  return {
+    content: `${content}\n\n${PERSO_MSG.bnetExpired}`,
+    components: [
+      {
+        type: ComponentType.ActionRow,
+        components: [
+          { type: ComponentType.Button, style: ButtonStyle.Primary, label: 'Relier Battle.net', custom_id: PERSO_IDS.relinkBnet },
+        ],
+      },
+    ],
+  };
 }

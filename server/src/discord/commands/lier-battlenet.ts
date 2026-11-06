@@ -1,9 +1,9 @@
 import { MessageFlags, type MessageComponentInteraction } from 'discord.js';
-import { OauthStateService } from '../../bnet/oauth/oauth-state.service';
 import { REGIONS, type AppConfig, type Region } from '../../common/config/config';
 import { APP_CONFIG } from '../../common/config/config.constants';
 import { CharacterService } from '../../core/characters/character.service';
-import { BNET_SELECT_IDS, renderLierBattlenetReply, setAltReply } from '../bnet-link/bnet-link-replies';
+import { BNET_SELECT_IDS, setAltReply } from '../bnet-link/bnet-link-replies';
+import { startBnetLink } from '../bnet-link/start-bnet-link';
 import { MSG } from '../messages';
 import { PERSO_MSG, setMainReply } from '../perso/perso-replies';
 import type { CommandHandler, ComponentHandler } from '../registry/command-handler';
@@ -23,13 +23,7 @@ export const handlers: CommandHandler[] = [
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const region = asRegion(interaction.options.getString('region')) ?? ctx.get<AppConfig>(APP_CONFIG).bnetDefaultRegion;
-      const { url, expiresAt } = await ctx.get(OauthStateService).issue({
-        ownerId: interaction.user.id,
-        guildId: interaction.guildId,
-        region,
-        interactionToken: interaction.token,
-      });
-      await interaction.editReply(renderLierBattlenetReply(url, region, expiresAt));
+      await startBnetLink(interaction, ctx, region);
     },
   },
 ];

@@ -1,16 +1,26 @@
-import { MessageFlags, type AutocompleteInteraction, type ChatInputCommandInteraction } from 'discord.js';
+import {
+  MessageFlags,
+  type AutocompleteInteraction,
+  type ChatInputCommandInteraction,
+  type InteractionEditReplyOptions,
+  type MessageComponentInteraction,
+} from 'discord.js';
+import type { AppConfig } from '../../common/config/config';
+import { APP_CONFIG } from '../../common/config/config.constants';
 import { characterChoices, resolveCharacterPick, type PickMode } from '../../core/characters/character-pick';
 import { parseRegion } from '../../core/characters/character-name';
 import { CharacterService } from '../../core/characters/character.service';
 import type { OwnedCharacter, TrackedRole } from '../../core/characters/character.types';
+import { PlayerModeService } from '../../core/players/player-mode.service';
+import { startBnetLink } from '../bnet-link/start-bnet-link';
 import { MSG } from '../messages';
-import { addReply, listReply, PERSO_MSG, setMainReply, untrackReply } from '../perso/perso-replies';
-import type { CommandContext, CommandHandler } from '../registry/command-handler';
+import { addReply, listMessage, PERSO_IDS, PERSO_MSG, setMainReply, untrackReply } from '../perso/perso-replies';
+import type { CommandContext, CommandHandler, ComponentHandler } from '../registry/command-handler';
 
 /** /perso ajouter, principal, retirer, liste (docs/02 « Joueur »). Rules live in CharacterService. */
 
 /** Ephemeral deferred reply in a guild; false when the command was used elsewhere (already answered). */
-async function start(interaction: ChatInputCommandInteraction): Promise<boolean> {
+async function start(interaction: ChatInputCommandInteraction | MessageComponentInteraction): Promise<boolean> {
   if (!interaction.inGuild()) {
     await interaction.reply({ content: MSG.guildOnly, flags: MessageFlags.Ephemeral });
     return false;
@@ -85,8 +95,31 @@ export const handlers: CommandHandler[] = [
     key: 'perso liste',
     async execute(interaction, ctx) {
       if (!(await start(interaction))) return;
-      const characters = await ctx.get(CharacterService).list(interaction.user.id);
-      await interaction.editReply({ content: listReply(characters) });
+      const [characters, relinkRegion] = await Promise.all([
+        ctx.get(CharacterService).list(interaction.user.id),
+        ctx.get(PlayerModeService).bnetRelinkRegion(interaction.user.id),
+      ]);
+      await interaction.editReply(listMessage(characters, relinkRegion !== null));
+    },
+  },
+];
+
+export const components: ComponentHandler[] = [
+  {
+    // « Relier Battle.net » of /perso liste: /lier battlenet again, in the region of the expired link.
+    customId: PERSO_IDS.relinkBnet,
+    async execute(interaction, ctx) {
+      if (!(await start(interaction))) return;
+      const region =
+        (await ctx.get(PlayerModeService).bnetRelinkRegion(interaction.user.id)) ??
+        ctx.get<AppConfig>(APP_CONFIG).bnetDefaultRegion;
+      const link = {
+        user: interaction.user,
+        guildId: interaction.guildId!,
+        token: interaction.token,
+        editReply: (options: InteractionEditReplyOptions) => interaction.editReply(options),
+      };
+      await startBnetLink(link, ctx, region);
     },
   },
 ];
