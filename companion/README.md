@@ -28,7 +28,7 @@ dart run tool/make_tray_icons.dart   # régénère assets/tray/*.ico
 | `process/` | détection du jeu | C-04 |
 | `api/` | client HTTP du contrat, erreurs typées, appairage, jeton dans le Gestionnaire d'identifiants | C-05 |
 | `ui/first_run/` | fenêtre de premier lancement (dossier du jeu, code, « Démarrer avec Windows ») | C-05 |
-| `sync/` | battements et synchros (interface vide pour l'instant) | C-06 |
+| `sync/` | battements, synchros, ensemble des ids déjà envoyés ; relie C-02 à C-05 | C-06 |
 | `queue/` | file hors ligne | C-07 |
 
 Les modules métier n'importent pas Flutter : seuls `main.dart` et `ui/tray/tray_controller.dart`
@@ -113,6 +113,37 @@ Tests : les corps envoyés sont validés contre `contract/schemas` avec `json_sc
 (dépendance de dev) ; `test/api/credential_manager_token_store_test.dart` utilise le vrai
 Gestionnaire d'identifiants sous un nom jetable.
 
+## Battements et synchros (`sync/`)
+
+`SyncRuntime` garde une session par dossier `_forever_` (celui de `settings.json`) : le watcher
+(C-03), la détection du jeu (C-04) et `SyncEngine`, qui envoie via `ApiClient` (C-05, derrière
+l'interface `CompanionApi`). Changer de dossier remplace la session. Après un appairage, tout le
+contenu des fichiers est envoyé.
+
+- **Battements** : un tout de suite à chaque `GameStarted` / `GameStopped`, puis toutes les
+  `heartbeatIntervalSec` (dernière valeur renvoyée par le serveur, 600 s au départ) tant que le jeu
+  tourne. `lastCharacter` = perso du `SESSION_START` le plus récent lu dans les fichiers.
+- **Synchros** : sur `FileReady`, le fichier est lu par le parseur de littéraux. Pour chaque perso,
+  il part si son `capturedAt` est plus récent que le dernier envoyé ou s'il a des événements dont
+  l'`id` n'est pas dans les 1 000 derniers ids envoyés ; seuls ces événements partent (le snapshot
+  part toujours avec, le contrat l'exige). Au plus une synchro toutes les 30 s : les changements
+  suivants attendent le créneau suivant et sont regroupés. Une synchro = un fichier (un compte).
+- **Arrêt du jeu** : si aucun fichier n'est réécrit dans les 60 s qui suivent `GameStopped`, tous
+  les fichiers sont relus pour la synchro finale.
+- **« Synchroniser maintenant »** relit tous les fichiers et renvoie tout (le serveur
+  déduplique), en respectant les 30 s.
+- **`schema` inconnu** (autre que 1) : rien n'est envoyé, icône orange « mets à jour l'appli ».
+  Un fichier qui n'est pas un littéral pur n'est pas envoyé non plus.
+- L'état envoyé n'est enregistré qu'après la réponse du serveur : une synchro en échec repart au
+  changement suivant. Erreurs : `401` → icône « jeton révoqué » ; réseau, 5xx, 429 → icône
+  « serveur injoignable » (la file hors ligne arrive avec C-07).
+
+Le normaliseur lit `assets/contract/sync.request.json`, copie de `contract/schemas/sync.request.json`
+embarquée dans l'appli ; `test/sync/contract_asset_test.dart` échoue si les deux diffèrent.
+
+Tests : faux watcher, faux détecteur et faux client API (corps validés contre `contract/schemas`),
+horloge manuelle (`test/support/fake_clock.dart`).
+
 ## Fichiers locaux
 
 Dans `%APPDATA%\ForeverTrackerSync\` :
@@ -120,6 +151,8 @@ Dans `%APPDATA%\ForeverTrackerSync\` :
 - `settings.json` : `gameFolder`, `startWithWindows` (vrai par défaut), `firstRunCompleted`, `version`.
   Aucun secret ; un fichier illisible redonne les valeurs par défaut. Le jeton est dans le
   Gestionnaire d'identifiants Windows (`ForeverTrackerSync/deviceToken`).
+- `sync-state.json` : dernier `capturedAt` envoyé par perso et 1 000 derniers ids d'événements
+  envoyés. Illisible → repart de zéro (le serveur déduplique).
 - `forevertracker-sync.log` puis `.1.log` … `.4.log` : 1 Mo par fichier, 5 fichiers au plus.
   Jamais de jeton, de code ni de contenu complet de SavedVariables.
 
