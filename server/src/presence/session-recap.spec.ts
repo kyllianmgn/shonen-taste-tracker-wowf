@@ -12,7 +12,8 @@ const input = (over: Partial<RecapInput> = {}): RecapInput => ({
   moneyEnd: 480_000n,
   playedStart: 70_000,
   playedEnd: 78_000,
-  endZone: 'Darkshire',
+  endZone: 'Duskwood',
+  endSubZone: 'Darkshire',
   deaths: 1,
   ...over,
 });
@@ -26,7 +27,8 @@ describe('buildRecap', () => {
       levelsGained: 2,
       moneyDelta: 380_000,
       playedAddedSec: 8000,
-      endZone: 'Darkshire',
+      endZone: 'Duskwood',
+      endSubZone: 'Darkshire',
       deaths: 1,
     });
   });
@@ -36,8 +38,8 @@ describe('buildRecap', () => {
   });
 
   it('leaves a delta null when one of its ends is unknown (no sync during the session)', () => {
-    const recap = buildRecap(input({ levelEnd: null, moneyStart: null, playedEnd: null, endZone: null }));
-    expect(recap).toMatchObject({ levelsGained: null, moneyDelta: null, playedAddedSec: null, endZone: null });
+    const recap = buildRecap(input({ levelEnd: null, moneyStart: null, playedEnd: null, endZone: null, endSubZone: null }));
+    expect(recap).toMatchObject({ levelsGained: null, moneyDelta: null, playedAddedSec: null, endZone: null, endSubZone: null });
   });
 
   it('never reports a negative duration', () => {
