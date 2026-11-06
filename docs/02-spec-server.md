@@ -397,7 +397,7 @@ Code dans `bnet/oauth/` (callback, `state`, étape 5 dans `CharacterService.link
 - Refus de l'autorisation sur Battle.net (`error=access_denied`) : page et message « Liaison annulée ».
 - Réponse éphémère : modifiée par le webhook de l'interaction (liste des persos avec niveau, rôle et ce qui leur est arrivé, puis les menus « Perso principal » et « Perso secondaire », 25 persos au plus). Si la modification échoue (jeton d'interaction expiré), le même contenu part en message privé.
 - Menus : « principal » fait comme `/perso principal` ; « secondaire » fait de ce perso le secondaire, l'ancien secondaire passe en `untracked`, et le principal est refusé.
-- Jeton joueur : `BNET_USER_TOKEN_SINK` le reçoit à la fin d'une liaison réussie. L'implémentation par défaut le jette ; S-18 la remplace pour le mode de base.
+- Jeton joueur : `BNET_USER_TOKEN_SINK` le reçoit à la fin d'une liaison réussie : gardé chiffré en mode de base, jeté en mode appli (voir « Comportement (S-18) »).
 
 ### Fiche publique (plus tard)
 
@@ -441,6 +441,19 @@ Battle.net ne fournit pas d'événements : le serveur compare deux relevés succ
 - Pas de pastille verte : le tableau affiche « vu il y a X » (dernier `last_login_timestamp` ou dernière donnée reçue) et une mention discrète « mode de base ».
 - Logs : pas de log de connexion ; niveaux et 60 publiés comme en mode appli ; fin de session publiée sous forme courte, « Davina Asaria : niv. 21 → 23 », sans durée.
 - Délai réaliste : 5 à 15 min après la déconnexion du joueur.
+
+### Comportement (S-18)
+
+Code dans `bnet/polling/` (job et relevés), `bnet/oauth/base-mode-token-sink.ts`, `common/crypto/token-cipher.ts`, `core/players/` (mode du joueur) et `render/board.ts`.
+
+- Mode d'un joueur : mode appli s'il a au moins un appareil non révoqué dont `last_seen_at` date de 7 jours au plus ; sinon mode de base (aucun appareil, tous révoqués, jamais vus ou vus il y a plus de 7 jours).
+- Fin du callback `/lier battlenet` : en mode de base, le jeton est chiffré (AES-256-GCM, nonce aléatoire de 12 octets par chiffrement, stocké `nonce | tag | chiffré`) dans `bnet_token` avec sa région et son expiration ; une nouvelle liaison remplace l'ancien jeton. En mode appli, le jeton est jeté.
+- Job toutes les 10 min (jamais deux passages en même temps) : supprime d'abord les jetons expirés, puis lit le profil de compte pour chaque jeton valide. 401 / 403 : un nouvel essai, puis le jeton est supprimé. Autre erreur : jeton gardé, nouvel essai au passage suivant. Jeton indéchiffrable : supprimé.
+- Seuls les persos déjà au propriétaire du jeton sont relevés (les autres ne sont créés ou rattachés que par `/lier battlenet`). Le niveau lu est comparé au dernier snapshot du perso, quelle que soit sa source : égal ou inférieur, rien n'est créé ; premier relevé sans snapshot, un snapshot de référence sans événement ; en hausse, un snapshot `bnet_account` (heure du relevé, `detail` vide, flag `suspect_level_jump` comme pour une synchro) et un `LEVEL_UP` par niveau gagné, `event_id` = `bnet-<character.id>-<niveau>`, `data` = `{ "level": n }`. Classe, race et faction sont mises à jour, une valeur absente n'efface rien.
+- Un niveau pour lequel un `LEVEL_UP` existe déjà (envoyé par l'addon via `/sync`) n'est pas déduit une seconde fois. Dans l'autre ordre (relevé puis `/sync` portant ses propres `LEVEL_UP`), l'événement de l'addon est enregistré aussi : la publication une seule fois par niveau revient aux logs (S-13).
+- Après chaque relevé : `character.updated` et `event.recorded` avec `source = bnet_account`, comme une synchro.
+- Tableau : un joueur en mode de base n'a pas de pastille et ne compte jamais « en ligne » ; sa ligne affiche `@membre · vu <t:…:R> · *mode de base*` (« vu » omis sans donnée reçue ou avec `hide_presence`).
+- `/perso liste` : pour un joueur en mode de base qui a des persos vérifiés Battle.net et plus de jeton valide, une ligne « liaison expirée » et un bouton « Relier Battle.net » (`perso:relink-bnet`) qui relance `/lier battlenet` dans la région du principal vérifié (sinon du premier perso vérifié), lié à l'interaction du bouton.
 
 ### Critères d'acceptation du mode de base
 
