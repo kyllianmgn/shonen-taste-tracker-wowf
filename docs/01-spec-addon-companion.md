@@ -276,9 +276,10 @@ Expérience joueur : une seule fenêtre au premier lancement (dossier du jeu dé
 ### Interface
 
 - Icône : verte (jeu détecté, dernier envoi OK), grise (jeu fermé), orange (erreur).
-- Menu : statut (perso, dernière synchro, serveur), Synchroniser maintenant (relit et renvoie), Appairer / Délier, Démarrer avec Windows, Ouvrir les logs, Quitter.
+- Menu : statut (perso, dernière synchro, serveur), « Télécharger la version X » si une mise à jour existe, Synchroniser maintenant (relit et renvoie), Appairer / Délier, Démarrer avec Windows, Ouvrir les logs, Quitter.
 - Notifications Windows uniquement pour les erreurs bloquantes.
-- Mise à jour automatique au démarrage (releases GitHub signées).
+- Vérification de mise à jour au démarrage : dernière release GitHub `companion-v*` (hors brouillons et pré-versions) ; si elle est plus récente, une notification et l'entrée de menu ouvrent le lien de téléchargement. Pas de mise à jour silencieuse en v1 : le joueur lance l'installeur.
+- Installeur Inno Setup par utilisateur, sans droit admin, non signé en v1 (avertissement SmartScreen) ; « Démarrer avec Windows » = valeur `ForeverTracker Sync` sous `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, supprimée à la désinstallation.
 - Logs locaux tournants, sans jeton ni contenu de fichier complet.
 
 ## Critères d'acceptation côté joueur

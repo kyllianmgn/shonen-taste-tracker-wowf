@@ -64,7 +64,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Tray icons, regenerated with: dart run tool/make_tray_icons.dart
+  # Tray icons, regenerated with: dart run tool/make_icons.dart
   assets:
     - assets/tray/
     # Copy of contract/schemas/sync.request.json, read by the Lua normalizer

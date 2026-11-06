@@ -87,9 +87,12 @@ class FakeCompanionApi implements CompanionApi {
 }
 
 class RecordingNotifier implements Notifier {
-  final shown = <({String title, String body})>[];
+  final shown = <({String title, String body, Future<void> Function()? onClick})>[];
 
   @override
-  Future<void> show({required String title, required String body}) async =>
-      shown.add((title: title, body: body));
+  Future<void> show({
+    required String title,
+    required String body,
+    Future<void> Function()? onClick,
+  }) async => shown.add((title: title, body: body, onClick: onClick));
 }

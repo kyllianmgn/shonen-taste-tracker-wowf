@@ -61,6 +61,7 @@ void main() {
       startup: FakeLauncher(calls),
       settings: store,
       openLogs: () async => calls.list.add('openLogs'),
+      openUpdate: () async => calls.list.add('openUpdate'),
       quit: () async => calls.list.add('quit'),
       emit: events.add,
     );
@@ -71,8 +72,9 @@ void main() {
   test('routes simple actions to their service', () async {
     await actions.handle(TrayAction.syncNow);
     await actions.handle(TrayAction.openLogs);
+    await actions.handle(TrayAction.openUpdate);
     await actions.handle(TrayAction.quit);
-    expect(calls.list, ['syncNow', 'openLogs', 'quit']);
+    expect(calls.list, ['syncNow', 'openLogs', 'openUpdate', 'quit']);
   });
 
   test('pair emits Paired only when pairing succeeds', () async {

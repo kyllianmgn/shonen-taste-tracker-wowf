@@ -76,4 +76,17 @@ void main() {
     expect(line(paired.apply(const SendFailed())), 'Serveur : injoignable');
     expect(line(paired.apply(const Unauthorized())), 'Serveur : jeton révoqué');
   });
+  test('an available update adds a download entry under the status', () {
+    expect(
+      buildTrayMenu(paired, startWithWindows: true).any((e) => e.action == TrayAction.openUpdate),
+      isFalse,
+    );
+    final menu = buildTrayMenu(
+      paired.apply(const UpdateAvailable('1.2.0')),
+      startWithWindows: true,
+    );
+    expect(labels(menu)[4], 'Télécharger la version 1.2.0');
+    expect(byAction(menu, TrayAction.openUpdate).enabled, isTrue);
+    expect(labels(menu)[5], '---');
+  });
 }

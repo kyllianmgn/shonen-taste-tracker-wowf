@@ -23,6 +23,7 @@ import 'settings/app_paths.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_store.dart';
 import 'settings/startup_launcher.dart';
+import 'settings/win32_run_key.dart';
 import 'sync/game_folder_session.dart';
 import 'sync/sent_state.dart';
 import 'sync/sync_runtime.dart';
@@ -32,6 +33,10 @@ import 'ui/notifications/windows_notifier.dart';
 import 'ui/tray/tray_actions.dart';
 import 'ui/tray/tray_controller.dart';
 import 'ui/tray/tray_state.dart';
+import 'update/update_checker.dart';
+import 'update/update_config.dart';
+import 'update/update_notice.dart';
+import 'update/version.dart';
 import 'wow_files/forever_folder.dart';
 
 final _log = Logger('app');
@@ -66,7 +71,14 @@ Future<void> main() async {
 
   final store = SettingsStore(paths.settingsFile);
   final settings = await store.load();
-  final startup = NotImplementedStartupLauncher();
+  final startup = RegistryStartupLauncher(
+    runKey: Win32RunKey(),
+    executablePath: Platform.resolvedExecutable,
+  );
+  await startup.applyAtStartup(
+    firstRunCompleted: settings.firstRunCompleted,
+    startWithWindows: settings.startWithWindows,
+  );
 
   late final TrayController tray;
   final syncRequestSchema = jsonDecode(
@@ -76,6 +88,16 @@ Future<void> main() async {
   final processLister = Win32ProcessLister();
   final notifier = WindowsNotifier();
   await notifier.setup('ForeverTracker Sync');
+  final updates = UpdateNotice(
+    source: UpdateChecker(
+      repo: updateRepoDefine,
+      current: Version.parse(appVersion)!,
+      httpClient: http.Client(),
+    ),
+    notifier: notifier,
+    emit: (e) => tray.dispatch(e),
+    openUrl: (url) => Process.run('explorer.exe', [url.toString()]),
+  );
   // One queue for the whole app: it outlives the per-folder sessions.
   final queue = OfflineQueue(
     api: apiClient,
@@ -122,6 +144,7 @@ Future<void> main() async {
       startup: startup,
       settings: store,
       openLogs: () => Process.run('explorer.exe', [paths.logsDir.path]),
+      openUpdate: updates.openLatest,
       quit: () async {
         _log.info('quitting');
         await sync.dispose();
@@ -149,6 +172,8 @@ Future<void> main() async {
   // The tray exists now: queue events (replays, 401) can reach it.
   await queue.start();
   unawaited(sync.setGameFolder(settings.gameFolder));
+  // One check per start; the player downloads and installs it (no silent update in v1).
+  unawaited(updates.checkOnce());
 
   runApp(CompanionApp(firstRun: firstRun));
 
