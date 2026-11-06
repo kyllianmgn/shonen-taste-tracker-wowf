@@ -1,16 +1,17 @@
 import { EventEmitter } from 'node:events';
 
 export interface RestCall {
-  method: 'patch' | 'post';
+  method: 'patch' | 'post' | 'delete';
   route: string;
-  body: unknown;
+  body?: unknown;
 }
 
-/** Records REST calls (webhook edits, DMs, channel messages) instead of sending them to Discord. */
+/** Records REST calls (webhook edits, DMs, channel and board messages) instead of sending them to Discord. */
 export class FakeRest {
   calls: RestCall[] = [];
   /** When set, editing an interaction reply fails like an expired interaction token (50027). */
   failWebhookEdits = false;
+  private nextMessageId = 1;
 
   reset(): void {
     this.calls = [];
@@ -30,7 +31,12 @@ export class FakeRest {
     if (route === '/users/@me/channels') {
       return Promise.resolve({ id: `dm-${(options.body as { recipient_id: string }).recipient_id}` });
     }
-    return Promise.resolve({});
+    return Promise.resolve({ id: `fake-message-${this.nextMessageId++}` });
+  }
+
+  delete(route: string): Promise<unknown> {
+    this.calls.push({ method: 'delete', route });
+    return Promise.resolve(undefined);
   }
 }
 

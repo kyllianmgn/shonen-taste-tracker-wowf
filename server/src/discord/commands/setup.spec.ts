@@ -1,4 +1,5 @@
 import { DiscordAPIError, MessageFlags, PermissionFlagsBits, PermissionsBitField, RESTJSONErrorCodes } from 'discord.js';
+import { BoardPublisher } from '../board/board-publisher';
 import { MSG } from '../messages';
 import type { CommandContext } from '../registry/command-handler';
 import * as adapter from '../setup/discord-setup-guild';
@@ -34,9 +35,12 @@ function interaction(opts: { admin?: boolean; inGuild?: boolean; tableau?: strin
   };
 }
 
+const invalidate = jest.fn();
+
 function context(run: jest.Mock) {
   const service = { run } as unknown as SetupService;
-  const ctx: CommandContext = { get: <T>() => service as T };
+  const publisher = { invalidate } as unknown as BoardPublisher;
+  const ctx: CommandContext = { get: <T>(token: unknown) => (token === BoardPublisher ? publisher : service) as T };
   return ctx;
 }
 
@@ -48,7 +52,10 @@ beforeEach(() => {
   fakeGuild = new FakeGuild();
   jest.spyOn(adapter, 'createSetupGuild').mockResolvedValue(fakeGuild);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  invalidate.mockReset();
+});
 
 describe('/setup command', () => {
   it('defers ephemerally, runs the setup with the chosen channels and answers in French', async () => {
@@ -60,6 +67,18 @@ describe('/setup command', () => {
     expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
     expect(run).toHaveBeenCalledWith(fakeGuild, { boardChannelId: 'b1', logsChannelId: 'l1' });
     expect(i.editReply).toHaveBeenCalledWith({ content: formatSetupReply(SUCCESS) });
+  });
+
+  it('asks for a redraw of the board, which /setup left provisional', async () => {
+    await execute(interaction(), context(jest.fn().mockResolvedValue(SUCCESS)));
+
+    expect(invalidate).toHaveBeenCalledWith('g1');
+  });
+
+  it('asks for no redraw when the setup failed', async () => {
+    await execute(interaction(), context(jest.fn().mockResolvedValue({ ok: false, reason: 'same_channel' })));
+
+    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it('passes no channel when the options are omitted', async () => {
