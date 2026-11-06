@@ -46,14 +46,12 @@ export class PairingService {
    */
   async issueCode(opts: { discordUserId: string; guildId: string }): Promise<IssuedCode> {
     const { discordUserId, guildId } = opts;
+    // ON CONFLICT DO NOTHING, like CharacterService: safe when two commands race, never touches existing rows.
     await this.prisma.$transaction([
-      this.prisma.player.upsert({ where: { discordUserId }, create: { discordUserId }, update: {} }),
-      this.prisma.guildConfig.upsert({ where: { guildId }, create: { guildId }, update: {} }),
-      this.prisma.membership.upsert({
-        where: { guildId_discordUserId: { guildId, discordUserId } },
-        create: { guildId, discordUserId },
-        update: {},
-      }),
+      this.prisma.$executeRaw`INSERT INTO player (discord_user_id) VALUES (${discordUserId}) ON CONFLICT DO NOTHING`,
+      this.prisma.$executeRaw`INSERT INTO guild_config (guild_id) VALUES (${guildId}) ON CONFLICT DO NOTHING`,
+      this.prisma.$executeRaw`
+        INSERT INTO membership (guild_id, discord_user_id) VALUES (${guildId}, ${discordUserId}) ON CONFLICT DO NOTHING`,
     ]);
 
     const expiresAt = new Date(this.clock.now() + PAIRING_CODE_TTL_SEC * 1_000);
