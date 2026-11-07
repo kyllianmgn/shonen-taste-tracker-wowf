@@ -44,6 +44,10 @@ const sendHeartbeat = (token: string) =>
   request(app.getHttpServer()).post('/v1/heartbeat').set('Authorization', `Bearer ${token}`).send(heartbeat);
 
 async function character(ownerId: string | null, firstName: string, role: string | null) {
+  // character.owner_id references player: the owner row must exist.
+  if (ownerId) {
+    await prisma.player.upsert({ where: { discordUserId: ownerId }, update: {}, create: { discordUserId: ownerId } });
+  }
   return prisma.character.create({ data: { region: 'eu', firstName, surname: 'Test', ownerId, role } });
 }
 
