@@ -40,3 +40,6 @@ Desktop.ini
 # Prisma generated client (server)
 server/src/generated/
 tools/fake-client/.token
+
+# Production database dumps (docker-compose.yml backup service)
+backups/

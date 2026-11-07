@@ -1,0 +1,73 @@
+# Production stack (docs/deploy.md): server + PostgreSQL + daily backups, behind Caddy.
+# Every value comes from the .env next to this file (see .env.example). Dev database: docker-compose.dev.yml.
+name: forever-tracker
+
+services:
+  server:
+    # VPS: a published image (ghcr.io/<owner>/forever-tracker-server:<version>).
+    # Locally, without SERVER_IMAGE: `docker compose up --build` builds server/Dockerfile.
+    image: ${SERVER_IMAGE:-forever-tracker-server:local}
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # POSTGRES_PASSWORD must be URL-safe (hex): it is inserted as is.
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@db:5432/${POSTGRES_DB:?}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Port 3000 is reachable only from the Caddy network: `reverse_proxy server:3000`.
+    expose:
+      - "3000"
+    networks:
+      - default
+      - caddy
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # No published port; internal network only.
+    networks:
+      - default
+
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    entrypoint: ["sh", "/usr/local/bin/pg-backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:?}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      PGDATABASE: ${POSTGRES_DB:?}
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./tools/pg-backup.sh:/usr/local/bin/pg-backup.sh:ro
+      - ${BACKUP_PATH:-./backups}:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - default
+
+networks:
+  # Created once on the host and shared with Caddy (docs/deploy.md).
+  caddy:
+    external: true
+    name: ${CADDY_NETWORK:-caddy}
+
+volumes:
+  pgdata:
