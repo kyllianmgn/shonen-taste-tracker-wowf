@@ -365,4 +365,82 @@ describe('BoardPublisher', () => {
       expect(rest.calls).toHaveLength(1);
     });
   });
+
+  describe('/admin rafraichir (republish)', () => {
+    it('deletes every board message, then publishes the board again as new messages', async () => {
+      setupGuild(players(60));
+      publisher.markDirty(GUILD);
+      await publisher.tick();
+      const before = store.guild(GUILD).boardMessageIds;
+      expect(before.length).toBeGreaterThan(1);
+      rest.reset();
+
+      publisher.republish(GUILD);
+      await advance(MIN_INTERVAL_MS);
+
+      expect(rest.calls.filter((c) => c.method === 'delete').map((c) => c.route)).toEqual(
+        expect.arrayContaining(before.map((id) => Routes.channelMessage(BOARD, id))),
+      );
+      expect(rest.calls.filter((c) => c.method === 'patch')).toEqual([]);
+      const after = store.guild(GUILD).boardMessageIds;
+      expect(after).toHaveLength(before.length);
+      expect(after.some((id) => before.includes(id))).toBe(false);
+      expect(rest.messagesOf(BOARD).map((m) => m.id)).toEqual(after);
+    });
+
+    it('republishes even when the render did not change', async () => {
+      setupGuild();
+      publisher.markDirty(GUILD);
+      await publisher.tick();
+      rest.reset();
+
+      publisher.republish(GUILD);
+      await advance(MIN_INTERVAL_MS);
+
+      expect(rest.calls.map((c) => c.method)).toEqual(['delete', 'post']);
+    });
+
+    it('still waits for the minimum interval since the last edit', async () => {
+      setupGuild();
+      publisher.markDirty(GUILD);
+      await publisher.tick();
+      rest.reset();
+
+      publisher.republish(GUILD);
+      await advance(TICK_MS);
+      expect(rest.calls).toEqual([]);
+
+      await advance(MIN_INTERVAL_MS - TICK_MS);
+      expect(rest.calls.map((c) => c.method)).toEqual(['delete', 'post']);
+    });
+
+    it('ignores a board message already deleted by hand', async () => {
+      setupGuild();
+      publisher.markDirty(GUILD);
+      await publisher.tick();
+      rest.deleteByHand(BOARD, '999');
+
+      publisher.republish(GUILD);
+      await advance(MIN_INTERVAL_MS);
+
+      expect(rest.messagesOf(BOARD)).toHaveLength(1);
+      expect(store.guild(GUILD).boardMessageIds).toEqual([rest.messagesOf(BOARD)[0].id]);
+    });
+
+    it('retries the whole republish after a network failure', async () => {
+      setupGuild();
+      publisher.markDirty(GUILD);
+      await publisher.tick();
+      rest.failNext('post', 500 as RESTJSONErrorCodes);
+
+      publisher.republish(GUILD);
+      await advance(MIN_INTERVAL_MS);
+      expect(rest.messagesOf(BOARD)).toHaveLength(0);
+      expect(store.guild(GUILD).boardMessageIds).toEqual([]);
+
+      await advance(MIN_INTERVAL_MS);
+      expect(rest.messagesOf(BOARD)).toHaveLength(1);
+      expect(store.guild(GUILD).boardMessageIds).toEqual([rest.messagesOf(BOARD)[0].id]);
+    });
+  });
 });
