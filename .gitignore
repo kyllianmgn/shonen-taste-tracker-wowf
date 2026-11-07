@@ -39,3 +39,4 @@ Desktop.ini
 
 # Prisma generated client (server)
 server/src/generated/
+tools/fake-client/.token
