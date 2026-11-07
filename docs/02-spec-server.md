@@ -419,7 +419,7 @@ Comportement (S-13, rendu pur dans `discord/render/logs.ts`, règles dans `disco
 - `published_at` est posé dans la base avant la mise en file, et seulement si au moins un serveur publie la ligne (une mort jamais publiée garde `published_at` nul). Un `LEVEL_UP` dont un autre `LEVEL_UP` du même perso et du même niveau est déjà publié (addon et Battle.net) n'est pas publié ni marqué. Ce qui attend en file au moment d'un plantage est perdu, jamais publié deux fois.
 - Sessions : début masqué par `hide_presence` ; fin non publiée si `quiet`. `hide_presence` retire la durée de la fin de session, `hide_money` l'or, `hide_zone` la zone (fin de session et morts). Zone de fin : sous-zone, sinon zone. Valeurs inconnues, or inchangé et zéro mort omis. Un perso inconnu ou `untracked` n'est jamais nommé : la ligne nomme le membre.
 - Erreur Discord `10003`, `50001` ou `50013` : la file du salon est vidée ; autre erreur : nouvel essai 1,5 s plus tard, message abandonné au 3e échec.
-- Mode de base : la fin de session déduite de `last_login_timestamp` n'existe pas encore (rien ne stocke cette valeur, voir S-18), donc pas de fin de session courte pour l'instant.
+- Mode de base : une fin de session `reason = bnet_logout` (déduite de `last_login_timestamp`, voir « Comportement (S-20) ») est publiée sous forme courte, « ⚫ Davina Asaria : niv. 21 → 23 » (un seul niveau s'il n'a pas changé), sans durée, or ni zone.
 
 ## Liaison Battle.net
 
