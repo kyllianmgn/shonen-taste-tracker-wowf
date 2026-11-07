@@ -202,7 +202,7 @@ CREATE TABLE game_session (
   character_id BIGINT REFERENCES character,      -- connu après la 1re synchro
   started_at   TIMESTAMPTZ NOT NULL,
   ended_at     TIMESTAMPTZ,
-  end_reason   TEXT,                             -- game_closed | heartbeat_timeout | character_changed
+  end_reason   TEXT,                             -- game_closed | heartbeat_timeout | character_changed | bnet_logout
   level_start INT, level_end INT, money_start BIGINT, money_end BIGINT,
   played_start INT, played_end INT
 );
@@ -224,6 +224,14 @@ CREATE TABLE bnet_token (                       -- mode de base uniquement
   region          TEXT NOT NULL,
   token_encrypted BYTEA NOT NULL,                 -- AES-256-GCM, clé TOKEN_ENC_KEY
   expires_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE bnet_public_poll (                 -- relevés de la fiche publique (S-20)
+  character_id  BIGINT PRIMARY KEY REFERENCES character ON DELETE CASCADE,
+  last_modified TEXT,                            -- renvoyé en If-Modified-Since
+  last_login_at TIMESTAMPTZ,                     -- dernier last_login_timestamp vu
+  changed_at    TIMESTAMPTZ,                     -- dernier relevé qui a changé niveau ou équipement
+  next_poll_at  TIMESTAMPTZ NOT NULL             -- index
 );
 
 CREATE TABLE oauth_state (                      -- flux /lier battlenet
@@ -269,7 +277,7 @@ Calculé à la fermeture : durée, niveaux gagnés (`level_end - level_start`), 
 - Snapshots et `SESSION_START` d'avant la session (plus de 5 min avant `started_at`, marge d'horloge client) sont ignorés, comme les snapshots d'un autre perso (la synchro envoie tous les persos du compte). Découpage : la session courante se ferme à l'heure du `SESSION_START` de l'autre perso, la nouvelle s'ouvre à cette même heure.
 - Niveau de départ : le plus bas des `SESSION_START` du perso dans la session (un `/reload` en produit un nouveau), sinon celui du snapshot de départ.
 - Fermeture `game_closed` : `ended_at` = heure du battement d'arrêt ; la fermeture a lieu 90 s plus tard (minuterie en mémoire, et la tâche chaque minute en secours après un redémarrage, l'heure d'arrêt étant alors relue dans le `last_seen_at` de l'appareil arrêté). `heartbeat_timeout` : `ended_at` = dernier contact de l'appareil.
-- `end_reason` ∈ `game_closed` · `heartbeat_timeout` · `character_changed`.
+- `end_reason` ∈ `game_closed` · `heartbeat_timeout` · `character_changed` ; `bnet_logout` vient du mode de base (fin de session déduite de la fiche publique, voir « Comportement (S-20) »), jamais de la machine d'état.
 - Événements (`PRESENCE_EVENTS`, `server/src/presence/presence.events.ts`), émis après validation de la transaction : `session.started` (`sessionId`, `ownerId`, `characterId` éventuellement null, `startedAt`) et `session.ended` (mêmes champs + `endedAt`, `reason`, `recap`, `quiet`). `recap` : `durationSec`, `levelStart`, `levelEnd`, `levelsGained`, `moneyDelta` (cuivre, négatif si perte), `playedAddedSec`, `endZone`, `endSubZone`, `deaths` ; une valeur dont un bout manque vaut null. La zone de fin vient du dernier snapshot de la session ; le rendu choisit zone ou sous-zone (« fin à Darkshire » est une sous-zone).
 - `quiet` (pas de log) : moins de 2 min **et** ni niveau gagné, ni or gagné ou perdu, ni mort. Le temps de jeu ajouté seul ne compte pas comme un changement.
 
@@ -450,11 +458,23 @@ Code dans `bnet/oauth/` (callback, `state`, étape 5 dans `CharacterService.link
 - Menus : « principal » fait comme `/perso principal` ; « secondaire » fait de ce perso le secondaire, l'ancien secondaire passe en `untracked`, et le principal est refusé.
 - Jeton joueur : `BNET_USER_TOKEN_SINK` le reçoit à la fin d'une liaison réussie : gardé chiffré en mode de base, jeté en mode appli (voir « Comportement (S-18) »).
 
-### Fiche publique (plus tard)
+### Fiche publique
 
-Un job quotidien teste `GET /profile/wow/character/{prénom}-{nom}?namespace=profile-forever-eu` (prénom-nom en minuscules) sur un perso vérifié de niveau 10+. Dès qu'il répond 200, activer le drapeau `BNET_PUBLIC_PROFILE` : les persos sans appli sont rafraîchis toutes les 6 h depuis la fiche publique (niveau, équipement, `last_login_timestamp` affiché comme « vu pour la dernière fois »).
+Un job quotidien teste `GET /profile/wow/character/{prénom}-{nom}?namespace=profile-forever-eu` (prénom-nom en minuscules) sur un perso vérifié de niveau 10+. Dès qu'il répond 200, activer le drapeau `BNET_PUBLIC_PROFILE` : les persos sans appli sont rafraîchis depuis la fiche publique au rythme adaptatif de « Sources et rythme des relevés » (niveau, équipement, `last_login_timestamp` affiché comme « vu pour la dernière fois »).
 
 Limites API : 100 requêtes/s et 36 000/h ; le client met en file et respecte les 429.
+
+### Comportement (S-20)
+
+Code dans `bnet/public/` (sonde, relevés, plan pur, stockage) et `jobs/bnet-public-*.job.ts`.
+
+- Sonde : au démarrage puis toutes les 24 h, sur le perso vérifié Battle.net dont le dernier snapshot est de niveau 10+ et le plus récent ; sans `If-Modified-Since`. Le résultat est journalisé (région et statut HTTP, jamais de nom ni de jeton). Un 200 avec `BNET_PUBLIC_PROFILE=true` active les relevés publics ; avec `false`, le journal invite à passer la variable à `true`. 404 : fiche toujours fermée, rien ne change. Une fois activés, les relevés restent actifs jusqu'au redémarrage suivant (l'état est en mémoire, la sonde repasse au démarrage).
+- Persos relevés : principal et secondaire des joueurs en mode de base (aucun appareil actif, voir « Comportement (S-18) »). Une tâche passe chaque minute et lit les persos jamais relevés ou dont `next_poll_at` est échu (500 par passage au plus).
+- Rythme : 10 min si le perso a changé (niveau, équipement) ou s'est connecté dans les 24 h, 6 h si sa dernière activité date de plus de 7 jours, 1 h sinon ou sans aucune donnée.
+- `If-Modified-Since` avec le `Last-Modified` stocké. 304, 404 ou erreur : rien n'est enregistré, seul `next_poll_at` avance (une erreur n'est donc pas réessayée à chaque minute).
+- 200 : un snapshot `bnet_public` (heure du relevé, `detail = { "equipment": … }` tel que reçu) si le niveau monte, si l'équipement diffère du dernier snapshot `bnet_public` ou au premier relevé sans snapshot. Un niveau plus bas que le dernier snapshot (fiche en retard sur un `/sync`) n'enregistre rien. `LEVEL_UP` déduits et flags comme en S-18 (même code), puis `character.updated` et `event.recorded` avec `source = bnet_public`.
+- `last_login_timestamp` (millisecondes ; une valeur en secondes est acceptée) ne recule jamais. Quand il avance, une `game_session` déjà fermée est créée : `started_at = ended_at = last_login_timestamp`, `end_reason = bnet_logout`, `level_start` = niveau d'avant le relevé, `level_end` = niveau après ; puis `session.ended` avec `reason = bnet_logout`, `quiet = false` et un récap sans durée (seuls les niveaux sont connus). Le premier timestamp vu ne ferme rien (la session peut dater de plusieurs jours).
+- Tableau : pour un joueur en mode de base, « vu » = le plus récent entre `last_login_timestamp` et la dernière donnée reçue ; l'heure de lecture d'un snapshot `bnet_public` ne compte que si le perso n'a pas de `last_login_timestamp`.
 
 ## Mode de base (sans appli)
 
