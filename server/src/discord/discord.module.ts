@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { Client, GatewayIntentBits } from 'discord.js';
 import type { AppConfig } from '../common/config/config';
 import { APP_CONFIG } from '../common/config/config.constants';
+import { GuildSettingsService } from './admin/guild-settings.service';
+import { SuspectsQueryService } from './admin/suspects-query.service';
 import { BoardEventsListener } from './board/board-events.listener';
 import { BOARD_STORE, type BoardStore } from './board/board-ports';
 import { BoardPublisher } from './board/board-publisher';
@@ -26,6 +28,8 @@ import { GUILD_CONFIG_STORE, SetupService } from './setup/setup.service';
     { provide: GUILD_CONFIG_STORE, useClass: PrismaGuildConfigStore },
     SetupService,
     ProfileQueryService,
+    GuildSettingsService,
+    SuspectsQueryService,
     DiscordClientService,
     { provide: BNET_LINK_NOTIFIER, useClass: DiscordBnetLinkNotifier },
     { provide: BOARD_STORE, useClass: PrismaBoardStore },

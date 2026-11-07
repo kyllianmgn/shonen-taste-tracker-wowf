@@ -44,7 +44,7 @@ describe('adminAddReply', () => {
     [{ status: 'already_tracked', character: DAVINA, role: 'alt' }, `ℹ️ **Davina Asaria** (EU) est déjà le perso secondaire de <@${MEMBER}>.`],
     [{ status: 'owned_by_other', character: DAVINA }, '❌ **Davina Asaria** (EU) appartient déjà à un autre membre.'],
     [
-      { status: 'role_taken', role: 'main', character: DAVINA, holder: { ...BOREK, role: 'main' } },
+      { status: 'role_taken', role: 'main', character: DAVINA, holder: { id: 2n, region: 'eu', firstName: 'Borek', surname: 'Tanu' } },
       `❌ <@${MEMBER}> a déjà un perso principal : **Borek Tanu** (EU).`,
     ],
     [{ status: 'too_many', character: DAVINA, tracked: [BOREK, BOREK] }, `❌ <@${MEMBER}> suit déjà 2 persos`],

@@ -18,6 +18,8 @@ interface GuildState {
   /** Hash of the last render sent, and the message ids it went to. */
   hash?: string;
   messageIds?: string[];
+  /** /admin rafraichir: delete every board message and post the board again on the next redraw. */
+  recreate?: boolean;
 }
 
 /** Errors after which the board cannot work until an admin acts: the board is turned off. */
@@ -69,6 +71,16 @@ export class BoardPublisher {
     state.dirty = true;
   }
 
+  /**
+   * /admin rafraichir: on the next allowed redraw, the board messages are deleted and the board is
+   * posted again as new messages, even if the render did not change. The debounce still applies.
+   */
+  republish(guildId: string): void {
+    const state = this.state(guildId);
+    state.recreate = true;
+    state.dirty = true;
+  }
+
   /** One pass of the job. Never throws; a tick still running makes this call wait for it instead. */
   tick(): Promise<void> {
     this.running ??= this.runTick().finally(() => {
@@ -103,12 +115,15 @@ export class BoardPublisher {
       return;
     }
 
+    const recreate = state.recreate === true;
+    state.recreate = false;
     const hash = renderHash(board.input);
-    if (hash === state.hash && sameIds(state.messageIds, board.boardMessageIds)) return;
+    if (!recreate && hash === state.hash && sameIds(state.messageIds, board.boardMessageIds)) return;
 
     state.lastEditAt = now;
     const live = [...board.boardMessageIds];
     try {
+      if (recreate) await this.deleteFrom(board.boardChannelId, live, 0);
       await this.sync(board.boardChannelId, live, renderBoard(board.input));
       state.hash = hash;
       state.messageIds = [...live];
@@ -118,6 +133,7 @@ export class BoardPublisher {
         return;
       }
       state.dirty = true;
+      state.recreate = recreate;
       this.logger.warn(`Board redraw of guild ${guildId} failed, retrying later: ${describe(error)}`);
     } finally {
       if (!sameIds(live, board.boardMessageIds) && this.guilds.has(guildId)) {
@@ -137,13 +153,18 @@ export class BoardPublisher {
       if (!(await this.edit(channelId, live[kept], payloads[kept]))) break;
       kept++;
     }
-    while (live.length > kept) {
-      await this.delete(channelId, live[live.length - 1]);
-      live.pop();
-    }
+    await this.deleteFrom(channelId, live, kept);
     for (const payload of payloads.slice(kept)) {
       const message = (await this.rest.post(Routes.channelMessages(channelId), { body: payload })) as { id: string };
       live.push(message.id);
+    }
+  }
+
+  /** Deletes the messages of `live` after the first `keep`, from the last one, keeping `live` up to date. */
+  private async deleteFrom(channelId: string, live: string[], keep: number): Promise<void> {
+    while (live.length > keep) {
+      await this.delete(channelId, live[live.length - 1]);
+      live.pop();
     }
   }
 
