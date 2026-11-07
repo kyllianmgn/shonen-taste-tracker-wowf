@@ -9,6 +9,10 @@ import { BOARD_STORE, type BoardStore } from './board/board-ports';
 import { BoardPublisher } from './board/board-publisher';
 import { PrismaBoardStore } from './board/prisma-board.store';
 import { DISCORD_CLIENT, DiscordClientService } from './client/discord-client.service';
+import { LogsEventsListener } from './logs/logs-events.listener';
+import { LOGS_STORE, type LogsStore } from './logs/logs-ports';
+import { LogsPublisher } from './logs/logs-publisher';
+import { PrismaLogsStore } from './logs/prisma-logs.store';
 import { BNET_LINK_NOTIFIER } from '../bnet/oauth/link-notifier';
 import { DiscordBnetLinkNotifier } from './bnet-link/discord-bnet-link-notifier';
 import { CommandRegistry, loadCommandHandlers, loadComponentHandlers } from './registry/command-registry';
@@ -43,7 +47,14 @@ import { GUILD_CONFIG_STORE, SetupService } from './setup/setup.service';
         }),
     },
     BoardEventsListener,
+    { provide: LOGS_STORE, useClass: PrismaLogsStore },
+    {
+      provide: LogsPublisher,
+      inject: [LOGS_STORE, DISCORD_CLIENT],
+      useFactory: (store: LogsStore, client: Client) => new LogsPublisher(store, client.rest, { now: () => Date.now() }),
+    },
+    LogsEventsListener,
   ],
-  exports: [BNET_LINK_NOTIFIER, BoardPublisher],
+  exports: [BNET_LINK_NOTIFIER, BoardPublisher, LogsPublisher],
 })
 export class DiscordModule {}
