@@ -5,7 +5,7 @@ EXPECTED_TOC = """\
 ## Interface: 16001
 ## Title: ForeverTracker
 ## Notes: Suit tes personnages pour le bot Discord
-## Version: 0.1.0
+## Version: 1.0.0
 ## SavedVariables: ForeverTrackerDB
 Locales/enUS.lua
 Locales/frFR.lua
@@ -28,7 +28,7 @@ def test_toc_metadata():
     metadata, _ = read_toc()
     assert metadata["Interface"] == "16001"
     assert metadata["SavedVariables"] == "ForeverTrackerDB"
-    assert metadata["Version"] == "0.1.0"
+    assert metadata["Version"] == "1.0.0"
 
 
 def test_every_toc_file_exists():
