@@ -388,60 +388,60 @@ flutter run -d windows --dart-define=API_BASE_URL=http://localhost:3000
 
 ### M0 — Socle
 
-- [ ] **S-01** Monorepo : `CLAUDE.md`, `docs/`, `contract/schemas` + `contract/fixtures`, `docker-compose.dev.yml`, workflows CI vides.
-- [ ] **S-02** Squelette NestJS, config validée au démarrage (variables obligatoires), `GET /health`, `schema.prisma` complet + première migration.
-- [ ] **S-03** Validation du contrat : chargement des schémas avec `ajv`, tests sur toutes les fixtures JSON.
-- [ ] **S-04** Parseur de littéraux Lua en TypeScript + normalisation guidée par le schéma ; tests sur les 4 fixtures SavedVariables.
+- [x] **S-01** Monorepo : `CLAUDE.md`, `docs/`, `contract/schemas` + `contract/fixtures`, `docker-compose.dev.yml`, workflows CI vides.
+- [x] **S-02** Squelette NestJS, config validée au démarrage (variables obligatoires), `GET /health`, `schema.prisma` complet + première migration.
+- [x] **S-03** Validation du contrat : chargement des schémas avec `ajv`, tests sur toutes les fixtures JSON.
+- [x] **S-04** Parseur de littéraux Lua en TypeScript + normalisation guidée par le schéma ; tests sur les 4 fixtures SavedVariables.
 
 ### M1 — Ingestion et présence
 
-- [ ] **S-05** Démarrage du bot, enregistrement des commandes (serveur de test en dev), `/setup` avec création des salons et permissions.
-- [ ] **S-06** `/perso ajouter`, `principal`, `retirer`, `liste` ; règles d'appartenance (2 persos suivis, un seul propriétaire).
-- [ ] **S-07** Appairage : `/lier appli`, `POST /v1/devices/pair`, garde d'authentification Bearer, `DELETE /v1/devices/me`, limites de débit.
-- [ ] **S-08** `POST /v1/sync` : validation, rattachement auto, snapshots, déduplication des événements, flags `regression` et `suspect_level_jump`.
-- [ ] **S-09** `POST /v1/heartbeat` + moteur de présence : ouverture, découpage par perso, fermeture (`game_closed`, `heartbeat_timeout`), récap.
-- [ ] **S-10** `tools/fake-client` (pair, heartbeat, sync, scenario) + scénario `session-levelup.json`.
+- [x] **S-05** Démarrage du bot, enregistrement des commandes (serveur de test en dev), `/setup` avec création des salons et permissions.
+- [x] **S-06** `/perso ajouter`, `principal`, `retirer`, `liste` ; règles d'appartenance (2 persos suivis, un seul propriétaire).
+- [x] **S-07** Appairage : `/lier appli`, `POST /v1/devices/pair`, garde d'authentification Bearer, `DELETE /v1/devices/me`, limites de débit.
+- [x] **S-08** `POST /v1/sync` : validation, rattachement auto, snapshots, déduplication des événements, flags `regression` et `suspect_level_jump`.
+- [x] **S-09** `POST /v1/heartbeat` + moteur de présence : ouverture, découpage par perso, fermeture (`game_closed`, `heartbeat_timeout`), récap.
+- [x] **S-10** `tools/fake-client` (pair, heartbeat, sync, scenario) + scénario `session-levelup.json`.
 
 ### M2 — Rendu Discord
 
-- [ ] **S-11** Rendu du tableau en fonction pure (tri, barres, confidentialité, découpage ≤ 3 800 caractères) + tests.
-- [ ] **S-12** Publication du tableau : debounce 15 s, hash de contenu, multi-messages, reprise sur `10008` / `10003` / `50013`.
-- [ ] **S-13** Logs : rendu pur + file par salon (1,5 s, regroupement 10 s), `published_at`, règle des 24 h, palier d'annonce.
-- [ ] **S-14** `/profil`, `/session`, `/classement`.
-- [ ] **S-15** `/confidentialite`, `/quitter`, `/config`, `/admin perso`, `/admin rafraichir`, `/admin suspects`.
+- [x] **S-11** Rendu du tableau en fonction pure (tri, barres, confidentialité, découpage ≤ 3 800 caractères) + tests.
+- [x] **S-12** Publication du tableau : debounce 15 s, hash de contenu, multi-messages, reprise sur `10008` / `10003` / `50013`.
+- [x] **S-13** Logs : rendu pur + file par salon (1,5 s, regroupement 10 s), `published_at`, règle des 24 h, palier d'annonce.
+- [x] **S-14** `/profil`, `/session`, `/classement`.
+- [x] **S-15** `/confidentialite`, `/quitter`, `/config`, `/admin perso`, `/admin rafraichir`, `/admin suspects`.
 
 ### M3 — Battle.net et mode de base
 
-- [ ] **S-16** Client Battle.net isolé : jeton applicatif, cache de l'index des royaumes (24 h), file et 429 ; tests `nock`.
-- [ ] **S-17** `/lier battlenet` : `oauth_state`, callback, échange du code, profil de compte, rattachement et vérification, édition de la réponse éphémère avec menus principal / secondaire.
-- [ ] **S-18** Mode de base : stockage chiffré du jeton (`bnet_token`), relevé toutes les 10 min pendant 24 h, événements déduits, affichage « mode de base ».
-- [ ] **S-19** `/sync code:` (FT1, inflate, schéma `share-code.payload`) et `/sync fichier:` (parseur Lua).
-- [ ] **S-20** Sonde quotidienne de la fiche publique et relevés adaptatifs derrière `BNET_PUBLIC_PROFILE`, avec `If-Modified-Since`.
+- [x] **S-16** Client Battle.net isolé : jeton applicatif, cache de l'index des royaumes (24 h), file et 429 ; tests `nock`.
+- [x] **S-17** `/lier battlenet` : `oauth_state`, callback, échange du code, profil de compte, rattachement et vérification, édition de la réponse éphémère avec menus principal / secondaire.
+- [x] **S-18** Mode de base : stockage chiffré du jeton (`bnet_token`), relevé toutes les 10 min pendant 24 h, événements déduits, affichage « mode de base ».
+- [x] **S-19** `/sync code:` (FT1, inflate, schéma `share-code.payload`) et `/sync fichier:` (parseur Lua).
+- [x] **S-20** Sonde quotidienne de la fiche publique et relevés adaptatifs derrière `BNET_PUBLIC_PROFILE`, avec `If-Modified-Since`.
 
 ### M4 — Addon
 
-- [ ] **A-01** TOC, `Core.lua`, initialisation de `ForeverTrackerDB`, harnais `pytest` + `lupa` + `wow_stubs.lua`.
-- [ ] **A-02** Identité (prénom, nom, GUID, région) et snapshot sur les appels « sûrs ».
-- [ ] **A-03** Appels « à vérifier » (métiers, réputations, ilvl, honneur) protégés par des tests d'existence.
-- [ ] **A-04** Journal d'événements : ids, plafond de 300, `SESSION_START` / `END`, `LEVEL_UP`, `DEATH`, `DUNGEON_ENTER`, `GUILD_CHANGE`, `PROFESSION_TIER`.
-- [ ] **A-05** Fenêtre Synchroniser (minuteur, conditions, report, masquage en combat), raccourci clavier, commandes `/ftr`.
-- [ ] **A-06** `/ftr share` (sérialiseur JSON, LibDeflate, base64url, `FT1:`) ; un test génère un code que les tests serveur de S-19 décodent.
+- [x] **A-01** TOC, `Core.lua`, initialisation de `ForeverTrackerDB`, harnais `pytest` + `lupa` + `wow_stubs.lua`.
+- [x] **A-02** Identité (prénom, nom, GUID, région) et snapshot sur les appels « sûrs ».
+- [x] **A-03** Appels « à vérifier » (métiers, réputations, ilvl, honneur) protégés par des tests d'existence.
+- [x] **A-04** Journal d'événements : ids, plafond de 300, `SESSION_START` / `END`, `LEVEL_UP`, `DEATH`, `DUNGEON_ENTER`, `GUILD_CHANGE`, `PROFESSION_TIER`.
+- [x] **A-05** Fenêtre Synchroniser (minuteur, conditions, report, masquage en combat), raccourci clavier, commandes `/ftr`.
+- [x] **A-06** `/ftr share` (sérialiseur JSON, LibDeflate, base64url, `FT1:`) ; un test génère un code que les tests serveur de S-19 décodent.
 - [ ] **A-07** Validation en jeu sur le client live (checklist de la spec), résultats des appels « à vérifier » dans le README, zip de release.
 
 ### M5 — Appli compagnon
 
-- [ ] **C-01** Projet Flutter Windows, icône de barre système, stockage des réglages.
-- [ ] **C-02** Parseur de littéraux Lua en Dart + normalisation ; mêmes fixtures que S-04.
-- [ ] **C-03** Détection du dossier `_forever_`, découverte des fichiers SavedVariables, watcher avec attente de stabilité.
-- [ ] **C-04** Détection du processus du jeu (état lancé / arrêté toutes les 5 s).
-- [ ] **C-05** Client API, fenêtre de premier lancement, appairage, jeton dans le stockage sécurisé Windows.
-- [ ] **C-06** Battements, envoi des synchros, ensemble des ids déjà envoyés.
-- [ ] **C-07** File hors ligne avec délais croissants, gestion du `401`.
+- [x] **C-01** Projet Flutter Windows, icône de barre système, stockage des réglages.
+- [x] **C-02** Parseur de littéraux Lua en Dart + normalisation ; mêmes fixtures que S-04.
+- [x] **C-03** Détection du dossier `_forever_`, découverte des fichiers SavedVariables, watcher avec attente de stabilité.
+- [x] **C-04** Détection du processus du jeu (état lancé / arrêté toutes les 5 s).
+- [x] **C-05** Client API, fenêtre de premier lancement, appairage, jeton dans le stockage sécurisé Windows.
+- [x] **C-06** Battements, envoi des synchros, ensemble des ids déjà envoyés.
+- [x] **C-07** File hors ligne avec délais croissants, gestion du `401`.
 - [x] **C-08** Démarrage avec Windows, installeur, release GitHub, vérification de mise à jour.
 
 ### M6 — Mise en production
 
-- [ ] **S-21** `Dockerfile`, `docker-compose.yml` de prod, entrée Caddy, sauvegarde `pg_dump` quotidienne, doc de déploiement.
+- [x] **S-21** `Dockerfile`, `docker-compose.yml` de prod, entrée Caddy, sauvegarde `pg_dump` quotidienne, doc de déploiement.
 - [ ] **S-22** Test de bout en bout réel : jeu + addon + appli + bot sur le serveur de test, puis mode de base avec un 2e joueur sans appli.
 
 ## Prompts de lancement
