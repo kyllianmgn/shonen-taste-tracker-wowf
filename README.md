@@ -34,6 +34,12 @@ The server refuses to start and lists every missing or malformed variable.
 `npm run test:e2e` recreates the `forever_test` database on the dev Postgres
 (override with `TEST_DATABASE_URL`; the name must end with `_test`).
 
+### Production
+
+`server/Dockerfile` + `docker-compose.yml` (server, PostgreSQL, daily `pg_dump` backups) behind
+Caddy; images are pushed to GHCR on `server-v*` tags. VPS setup, updates and restores:
+[docs/deploy.md](docs/deploy.md).
+
 ## Documentation
 
 Specs live in [`docs/`](docs/) (French):
@@ -43,3 +49,4 @@ Specs live in [`docs/`](docs/) (French):
 - [02-spec-server.md](docs/02-spec-server.md): bot, server, data model, exchange contract
 - [03-getting-started.md](docs/03-getting-started.md): repo layout, backlog, fixtures, dev environment
 - [04-prompts.md](docs/04-prompts.md): per-task prompts and parallel work plan
+- [deploy.md](docs/deploy.md): production deployment on the VPS

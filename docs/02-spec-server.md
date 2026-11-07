@@ -550,6 +550,14 @@ Code dans `bnet/polling/` (job et relevés), `bnet/oauth/base-mode-token-sink.ts
 - Migrations lancées au démarrage du conteneur ; `GET /health` vérifie la base et la connexion Discord : `{"status":"ok","database":"up","discord":"up"}`, ou 503 avec `"status":"error"` dès qu'un des deux est `down`.
 - Sauvegarde quotidienne de la base (`pg_dump`).
 
+### Comportement (S-21)
+
+- `server/Dockerfile` multi-étapes, contexte de build = racine du dépôt (le serveur lit `contract/schemas` à l'exécution) : étape `build` (`npm ci`, `prisma generate`, `nest build`, puis `npm prune --omit=dev`), image d'exécution `node:24-bookworm-slim` sous l'utilisateur `node`, `HEALTHCHECK` sur `GET /health`. Le CLI `prisma` est une dépendance de production pour lancer `prisma migrate deploy` avant `node dist/main.js` ; une migration en échec empêche le démarrage.
+- `docker-compose.yml` : `server`, `db` (volume nommé `pgdata`, aucun port publié) et `backup` ; `server` est aussi branché sur le réseau externe de Caddy (`CADDY_NETWORK`, `caddy` par défaut). Toutes les valeurs viennent du `.env` voisin (`.env.example` à la racine) ; `DATABASE_URL` est construite à partir de `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+- Sauvegarde : conteneur `backup` (`postgres:16`, `tools/pg-backup.sh`), un `pg_dump -Fc` par jour à `BACKUP_HOUR` UTC dans `BACKUP_PATH`, fichiers de plus de `BACKUP_RETENTION_DAYS` (14) jours supprimés après chaque sauvegarde réussie ; sauvegarde immédiate au démarrage s'il n'y en a aucune de moins de 24 h.
+- CI `server.yml` : lint, tests, build et construction de l'image sur chaque PR ; un tag `server-v<version>` (égal à la version de `server/package.json`) pousse `ghcr.io/<owner>/forever-tracker-server:<version>` (et `latest` hors pré-version).
+- Procédure complète (VPS, Caddy, mise à jour, restauration) : `docs/deploy.md`.
+
 ### Discord Developer Portal
 
 - Scopes d'invitation : `bot`, `applications.commands`.
