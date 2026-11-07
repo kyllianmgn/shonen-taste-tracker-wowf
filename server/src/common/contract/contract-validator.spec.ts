@@ -70,6 +70,21 @@ describe('ContractValidator', () => {
     expect(validator.validate(schema, readFixture(file))).toEqual({ ok: true });
   });
 
+  // Scenario payloads (tools/fake-client) are `<scenario>.<payload>-<variant>.json`; the scenario
+  // lists themselves are `<scenario>.json`.
+  const scenarioPayloads = readdirSync(join(FIXTURES_DIR, 'scenarios')).filter((f) => /^[^.]+\.[^.]+\.json$/.test(f));
+
+  it('finds the scenario payloads', () => {
+    expect(scenarioPayloads.length).toBeGreaterThan(0);
+  });
+
+  it.each(scenarioPayloads)('accepts scenario payload %s', (file) => {
+    const schema = FIXTURE_SCHEMAS[file.split('.')[1].split('-')[0]];
+    expect(schema).toBeDefined();
+
+    expect(validator.validate(schema, readFixture(join('scenarios', file)))).toEqual({ ok: true });
+  });
+
   it('rejects an unknown region', () => {
     const payload = validSync();
     payload.characters[0].key.region = 'fr';

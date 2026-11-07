@@ -1,0 +1,72 @@
+{
+  "sentAt": 1793900000,
+  "schema": 1,
+  "addonVersion": "0.1.0",
+  "characters": [
+    {
+      "key": {
+        "region": "eu",
+        "firstName": "Davina",
+        "surname": "Asaria",
+        "guid": "Player-4242-0A1B2C3D",
+        "realmName": "CAMWOW EU5 Realm 1 PvE"
+      },
+      "snapshot": {
+        "capturedAt": 1793900000,
+        "level": 22,
+        "xp": 12900,
+        "xpMax": 12900,
+        "rested": 2100,
+        "money": 380000,
+        "playedTotal": 80800,
+        "playedLevel": 9800,
+        "zone": "Duskwood",
+        "subZone": "Darkshire",
+        "mapId": 1431,
+        "classFile": "PRIEST",
+        "raceFile": "Troll",
+        "sex": 3,
+        "faction": "Horde",
+        "guild": "Les Veilleurs",
+        "guildRank": "Membre",
+        "ilvl": 21,
+        "deaths": 4,
+        "honor": 0,
+        "equipment": [
+          {
+            "slot": 1,
+            "itemId": 7720,
+            "link": "|cff1eff00|Hitem:7720::::::::23:::::::::|h[Whitemane's Chapeau]|h|r"
+          }
+        ],
+        "professions": [
+          {
+            "name": "Herboristerie",
+            "rank": 112,
+            "max": 150
+          }
+        ],
+        "reputations": [
+          {
+            "factionId": 76,
+            "name": "Orgrimmar",
+            "standing": 5,
+            "value": 1200,
+            "max": 6000
+          }
+        ]
+      },
+      "events": [
+        {
+          "id": "Player-4242-0A1B2C3D-1793900000-1",
+          "type": "SESSION_START",
+          "at": 1793900000,
+          "data": {
+            "level": 22,
+            "zone": "Duskwood"
+          }
+        }
+      ]
+    }
+  ]
+}

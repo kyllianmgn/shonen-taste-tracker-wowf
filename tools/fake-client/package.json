@@ -1,0 +1,14 @@
+{
+  "name": "forever-fake-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Replays contract fixtures and scenarios against the ForeverTracker server",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,6 @@
+[
+  {"action":"heartbeat","fixture":"../heartbeat.running.json","gameRunning":true,"waitSec":2},
+  {"action":"sync","fixture":"session-levelup.sync-login.json","waitSec":2},
+  {"action":"sync","fixture":"session-levelup.sync-levelup.json","waitSec":2},
+  {"action":"heartbeat","fixture":"../heartbeat.stopped.json","gameRunning":false}
+]
