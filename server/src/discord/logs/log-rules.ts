@@ -1,5 +1,5 @@
 import type { CharacterRole } from '../../core/characters/character.types';
-import { renderDeathLog, renderGuildJoinLog, renderLevel60Log, renderLevelUpLog, type LogCharacter } from '../render/logs';
+import { renderDeathLog, renderDungeonEnterLog, renderGuildJoinLog, renderLevel60Log, renderLevelUpLog, type LogCharacter } from '../render/logs';
 
 /** Filters of docs/02 « Logs », pure. */
 
@@ -61,6 +61,11 @@ export function eventLogLine(event: { type: string; data: Record<string, unknown
         zone: text(event.data.zone),
         hideZone: ctx.hideZone,
       });
+    case 'DUNGEON_ENTER': {
+      // The instance is where the character is: without it the line says nothing, so hide_zone drops it.
+      const instance = text(event.data.instanceName);
+      return instance && !ctx.hideZone ? renderDungeonEnterLog({ character, instance }) : null;
+    }
     case 'GUILD_CHANGE': {
       const guild = text(event.data.to);
       return guild ? renderGuildJoinLog({ character, guild }) : null;

@@ -130,6 +130,11 @@ export function renderDeathLog(input: {
   return `💀 ${name(input.character)} est mort${input.female ? 'e' : ''}${where}${level}`;
 }
 
+/** « 🏰 Davina Asaria entre dans Les Mortemines ». The caller skips it under hide_zone. */
+export function renderDungeonEnterLog(input: { character: LogCharacter; instance: string }): string {
+  return `🏰 ${name(input.character)} entre dans ${plain(input.instance)}`;
+}
+
 /** The brackets are escaped so `<#123>`-like guild names never render as mentions. */
 export function renderGuildJoinLog(input: { character: LogCharacter; guild: string }): string {
   return `${name(input.character)} rejoint \\<${plain(input.guild)}>`;

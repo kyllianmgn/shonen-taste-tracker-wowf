@@ -294,6 +294,19 @@ describe('LogsPublisher', () => {
       expect(posted()).toEqual(['💀 Davina Asaria est morte (niv. 23)']);
     });
 
+    it('posts dungeon entries, except with hide_zone', async () => {
+      await publisher.onEventRecorded(event('DUNGEON_ENTER', { instanceName: 'Les Mortemines', instanceId: 36 }));
+      await advance(LOG_GROUP_WINDOW_MS);
+      expect(posted()).toEqual(['🏰 Davina Asaria entre dans Les Mortemines']);
+
+      store.addPlayer(KYLLIAN, ['g1'], { hideZone: true });
+      const hidden = event('DUNGEON_ENTER', { instanceName: 'Ombrecroc', instanceId: 33 });
+      await publisher.onEventRecorded(hidden);
+      await advance(LOG_GROUP_WINDOW_MS);
+      expect(posted()).toEqual(['🏰 Davina Asaria entre dans Les Mortemines']);
+      expect(store.publishedAt(hidden.id)).toBeNull();
+    });
+
     it('posts guild joins', async () => {
       await publisher.onEventRecorded(event('GUILD_CHANGE', { to: 'Les Veilleurs' }));
       await publisher.onEventRecorded(event('GUILD_CHANGE', { from: 'Les Veilleurs' }));

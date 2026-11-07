@@ -29,7 +29,7 @@ const CHANNEL_ERRORS = new Set<number>([
 ]);
 
 /** Types that can post something; the others are not even looked at. */
-const LOGGED_TYPES = new Set(['LEVEL_UP', 'DEATH', 'GUILD_CHANGE']);
+const LOGGED_TYPES = new Set(['LEVEL_UP', 'DEATH', 'DUNGEON_ENTER', 'GUILD_CHANGE']);
 
 export interface LogsPublisherOptions {
   /** Milliseconds since the epoch. */
