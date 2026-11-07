@@ -323,6 +323,16 @@ Comportement de `/profil`, `/session` et `/classement` (S-14, rendu pur dans `di
 | `/admin rafraichir` | — | Supprime et republie le tableau |
 | `/admin suspects` | — | Liste les snapshots et événements flagués des 7 derniers jours |
 
+Comportement de `/confidentialite`, `/quitter`, `/config` et `/admin` (S-15, services `core/players/player-account.service.ts`, `discord/admin/`, rendus purs dans `discord/privacy/privacy-replies.ts` et `discord/admin/admin-replies.ts`) :
+
+- `/confidentialite` et `/config` sans option affichent les réglages actuels sans rien changer ; avec des options, seules celles données changent (ligne `player` ou `guild_config` créée avec ses valeurs par défaut si besoin), puis les tableaux concernés sont marqués à redessiner.
+- `/quitter` répond tout de suite (sans base) avec deux boutons, « Oui, tout supprimer » et « Annuler ». Le bouton de confirmation vaut 60 s, comptées depuis la création du message éphémère (rien n'est gardé en mémoire) ; après, il répond « confirmation expirée » et retire les boutons. La suppression suit la règle du « Modèle de données », sous le verrou de ligne `player` ; un appareil supprimé reçoit `401 invalid_token` à son envoi suivant. Les tableaux des serveurs où le joueur apparaissait sont redessinés.
+- Nettoyage : `OrphanCleanupJob` (`server/src/jobs/`), toutes les heures, supprime les persos sans propriétaire avec leurs snapshots et événements.
+- Commandes admin : `default_member_permissions` = Gérer le serveur, et la permission est revérifiée à l'exécution (un admin du serveur peut ouvrir la commande à d'autres) ; refus éphémère sinon.
+- `/admin perso` : mêmes règles que `/perso ajouter` pour le membre choisi (appartenance créée sur ce serveur) ; refus pour un bot. Les mentions de la réponse ne notifient personne.
+- `/admin rafraichir` : au prochain passage autorisé du debounce (15 s depuis la dernière édition), les messages du tableau sont supprimés puis le tableau est republié dans de nouveaux messages, même si le rendu n'a pas changé. Sans tableau configuré : renvoi vers `/setup`.
+- `/admin suspects` : snapshots flagués (par `received_at`) et événements flagués (par `at`) des 7 derniers jours, des persos des membres de ce serveur, du plus récent au plus ancien, tronqués à 2 000 caractères avec « … et N de plus ».
+
 Permissions posées par `/setup` sur le salon tableau : refus à @everyone d'Envoyer des messages, Envoyer dans les fils, Créer des fils publics et privés, Ajouter des réactions ; autorisation au bot de Voir le salon, Envoyer des messages, Intégrer des liens, Lire l'historique. Le bot a besoin de Gérer les salons sur le serveur pour poser ces permissions.
 
 Comportement de `/setup` (S-05) :
