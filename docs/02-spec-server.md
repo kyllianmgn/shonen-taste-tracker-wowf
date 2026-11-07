@@ -24,7 +24,7 @@ Un seul service Node, **ForeverTracker Server**, contient l'API HTTP, le bot Dis
 | `bnet` | OAuth joueur, client API Blizzard Forever |
 | `jobs` | Tâches planifiées (expiration, débounce du tableau, nettoyage) |
 
-Les modules communiquent par événements internes (`character.updated`, `session.started`, `session.ended`, `event.recorded`) : `ingest` et `presence` les émettent, `discord` les consomme.
+Les modules communiquent par événements internes (`character.updated`, `session.started`, `session.ended`, `event.recorded`, `character.tracked`) : `ingest`, `presence` et `core` les émettent, `discord` les consomme.
 
 ## Contrat d'échange
 
@@ -401,6 +401,17 @@ Comportement (S-12) :
 - `published_at` empêche toute double publication.
 - Événements reçus plus de 24 h après leur `at` (file hors ligne vidée tard) ou flagués : enregistrés, jamais publiés.
 - Or affiché en po / pa / pc à partir du cuivre.
+
+Comportement (S-13, rendu pur dans `discord/render/logs.ts`, règles dans `discord/logs/log-rules.ts`, publication dans `discord/logs/`) :
+
+- Abonnements : `event.recorded`, `session.started`, `session.ended` et `character.tracked`. Ce dernier est émis par `core/characters` après validation quand un perso devient principal ou secondaire alors qu'il était nouveau, sans propriétaire ou `untracked` (`/perso ajouter`, `/admin perso`, `/perso principal` ou menus de rôle sur un perso non suivi) ; un simple échange principal / secondaire n'émet rien.
+- Salons visés : le salon logs de chaque serveur où le joueur a une appartenance (`logs_channel_id` renseigné). Mentions affichées sans notifier personne.
+- Une ligne par événement ; les lignes d'un même joueur dans un salon attendent 10 s sans nouvelle ligne, puis partent en un message, triées par heure de l'événement (un message plein, 2 000 caractères, part sans attendre et un autre commence). Une tâche (`jobs/logs-send.job.ts`, toutes les 500 ms) envoie au plus un message par salon toutes les 1,5 s ; à l'arrêt propre du serveur, tout ce qui attend part tout de suite.
+- Événements de jeu : `LEVEL_UP`, `DEATH` et `GUILD_CHANGE` seulement. Ni flagués, ni d'un perso `untracked`, ni reçus plus de 24 h après leur `at` (heure de réception = traitement de `event.recorded`). `LEVEL_UP` : annoncé si `niveau % level_announce_step == 0`, et le 60 toujours, sous la seule forme 🏆 ; temps de jeu tiré de `data.playedTotal`, omis s'il manque. `DEATH` : seulement dans les serveurs où `log_deaths` est actif ; « morte » si le dernier snapshot a `sex = 3`. `GUILD_CHANGE` : seulement avec un `to` (rejoindre ou changer de guilde) ; un départ sans nouvelle guilde ne publie rien.
+- `published_at` est posé dans la base avant la mise en file, et seulement si au moins un serveur publie la ligne (une mort jamais publiée garde `published_at` nul). Un `LEVEL_UP` dont un autre `LEVEL_UP` du même perso et du même niveau est déjà publié (addon et Battle.net) n'est pas publié ni marqué. Ce qui attend en file au moment d'un plantage est perdu, jamais publié deux fois.
+- Sessions : début masqué par `hide_presence` ; fin non publiée si `quiet`. `hide_presence` retire la durée de la fin de session, `hide_money` l'or, `hide_zone` la zone (fin de session et morts). Zone de fin : sous-zone, sinon zone. Valeurs inconnues, or inchangé et zéro mort omis. Un perso inconnu ou `untracked` n'est jamais nommé : la ligne nomme le membre.
+- Erreur Discord `10003`, `50001` ou `50013` : la file du salon est vidée ; autre erreur : nouvel essai 1,5 s plus tard, message abandonné au 3e échec.
+- Mode de base : la fin de session déduite de `last_login_timestamp` n'existe pas encore (rien ne stocke cette valeur, voir S-18), donc pas de fin de session courte pour l'instant.
 
 ## Liaison Battle.net
 
