@@ -322,6 +322,12 @@ Formes reprises des relevés communautaires du 4 novembre ; `account-profile.404
 
 `tools/fake-client` (Node, sans dépendance au jeu) : `pair <code>`, `heartbeat --running|--stopped`, `sync --fixture <fichier>`, et `scenario <fichier>` qui rejoue une suite d'appels avec des délais (par exemple : lancement du jeu, synchro, niveau, arrêt). C'est l'outil des tests e2e et du test manuel sur le serveur Discord de test.
 
+- Configuration : `API_BASE_URL` (défaut `http://localhost:3000`) ; le jeton d'appareil reçu par `pair` est enregistré dans `tools/fake-client/.token` (gitignoré, jamais affiché), ou dans le fichier désigné par `FAKE_CLIENT_TOKEN_FILE`.
+- Horodatages : avant l'envoi, `sentAt` est placé à maintenant + `offsetSec` (0 par défaut, `--offset-sec <n>` en ligne de commande) ; `capturedAt` et les `at` des événements gardent leur écart avec `sentAt`. L'horodatage contenu dans les identifiants d'événements de l'addon (`<guid>-<at>-<seq>`) suit `at`, si bien qu'un rejeu crée de nouveaux événements au lieu de doublons.
+- `heartbeat --running|--stopped` envoie `heartbeat.running.json` / `heartbeat.stopped.json` (ou `--fixture`).
+- Scénario : liste JSON d'étapes `{ action, fixture?, gameRunning?, waitSec?, offsetSec? }`, avec `action` = `heartbeat` (corps tiré de `fixture` ou construit, `gameRunning` prioritaire), `sync` (`fixture` obligatoire) ou `wait`. Les chemins de fixture sont relatifs au fichier de scénario ; `waitSec` est la pause après l'étape ; un 429 est réessayé une fois après `Retry-After`.
+- `contract/fixtures/scenarios/session-levelup.json` : lancement du jeu, synchro au niveau 22 (`SESSION_START`), synchro au niveau 23 (`LEVEL_UP`), arrêt du jeu. Le serveur ferme la session 90 s après l'arrêt (`game_closed`), avec 1 niveau gagné. Il suppose un personnage neuf : rejoué sur un Davina déjà niveau 23, la synchro au niveau 22 est rejetée (`regression`).
+
 ## Environnement de dev local (Windows, PowerShell)
 
 ### À installer
