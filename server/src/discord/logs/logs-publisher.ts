@@ -5,6 +5,7 @@ import type { EventRecordedEvent } from '../../ingest/sync/sync.events';
 import type { SessionEndedEvent, SessionStartedEvent } from '../../presence/presence.events';
 import {
   LOG_MAX_MESSAGE_CHARS,
+  renderBaseModeSessionEndLog,
   renderSessionEndLog,
   renderSessionStartLog,
   renderTrackedLog,
@@ -119,7 +120,12 @@ export class LogsPublisher {
     const targets = await this.store.targetsOfPlayer(event.ownerId);
     if (!targets.length) return;
     const [privacy, shown] = await Promise.all([this.store.privacyOf(event.ownerId), this.shownCharacter(event.characterId)]);
-    const text = renderSessionEndLog({ discordUserId: event.ownerId, character: shown?.names ?? null, recap: event.recap, privacy });
+    const character = shown?.names ?? null;
+    // Base mode: deduced from the public profile, only the levels are known (S-20).
+    const text =
+      event.reason === 'bnet_logout'
+        ? renderBaseModeSessionEndLog({ discordUserId: event.ownerId, character, recap: event.recap })
+        : renderSessionEndLog({ discordUserId: event.ownerId, character, recap: event.recap, privacy });
     this.enqueueAll(targets, event.ownerId, { at: event.endedAt.getTime(), text });
   }
 
