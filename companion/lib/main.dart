@@ -1,3 +1,7 @@
+// window_manager 0.6 moved the 0.5.x API to legacy.dart (deprecated bridge). 0.5.2 crashes on
+// Flutter 3.47, so main.dart stays on the bridge until it moves to the native API.
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -7,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:window_manager/legacy.dart';
 
 import 'api/api_client.dart';
 import 'api/api_config.dart';
