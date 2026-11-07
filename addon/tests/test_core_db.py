@@ -7,7 +7,7 @@ DEFAULT_SETTINGS = {"interval": 15, "levelPrompt": True, "debug": False}
 def assert_fresh_structure(db):
     assert db == {
         "schema": 1,
-        "addonVersion": "0.1.0",
+        "addonVersion": "1.0.0",
         "settings": DEFAULT_SETTINGS,
         "characters": {},
     }
@@ -58,7 +58,8 @@ def test_existing_db_is_kept(wow):
     wow.load_saved_variables(SAVED_VARIABLES_DIR / "ForeverTracker.sample.lua")
     before = wow.db()
     wow.load_addon()
-    assert wow.db() == before
+    # The addon refreshes addonVersion on load; everything else is kept.
+    assert wow.db() == {**before, "addonVersion": "1.0.0"}
 
 
 def test_existing_db_table_is_the_same_object(wow):
@@ -85,7 +86,7 @@ def test_off_interval_and_disabled_prompt_are_kept(wow):
     db = wow.db()
     assert db["settings"] == {"interval": "off", "levelPrompt": False, "debug": False}
     assert db["characters"] == {}
-    assert db["addonVersion"] == "0.1.0"
+    assert db["addonVersion"] == "1.0.0"
 
 
 def test_partial_db_gets_missing_top_level_fields(wow):
@@ -95,7 +96,7 @@ def test_partial_db_gets_missing_top_level_fields(wow):
     wow.load_addon()
     db = wow.db()
     assert db["schema"] == 1
-    assert db["addonVersion"] == "0.1.0"
+    assert db["addonVersion"] == "1.0.0"
     assert db["settings"] == DEFAULT_SETTINGS
     assert db["characters"] == {"Player-1-1": {"events": [{"id": "x"}]}}
 

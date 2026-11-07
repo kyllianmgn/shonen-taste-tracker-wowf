@@ -4,7 +4,7 @@
 local addonName, ns = ...
 
 ns.name = addonName
-ns.VERSION = "0.1.0"
+ns.VERSION = "1.0.0"
 ns.SCHEMA = 1
 ns.DEFAULT_SETTINGS = {
   interval = 15, -- minutes between "Synchroniser" prompts: 10, 15, 30 or "off"

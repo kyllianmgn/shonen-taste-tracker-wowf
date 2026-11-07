@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: ForeverTracker
 ## Notes: Suit tes personnages pour le bot Discord
-## Version: 0.1.0
+## Version: 1.0.0
 ## SavedVariables: ForeverTrackerDB
 Locales/enUS.lua
 Locales/frFR.lua

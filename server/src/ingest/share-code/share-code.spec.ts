@@ -22,7 +22,7 @@ describe('decodeShareCode', () => {
     expect(result.ok).toBe(true);
     const p = payload();
     expect(p.schema).toBe(1);
-    expect(p.addonVersion).toBe('0.1.0');
+    expect(p.addonVersion).toBe('1.0.0');
     expect(p.character.key).toEqual({
       region: 'eu',
       firstName: 'Davina',
@@ -95,7 +95,7 @@ describe('toSyncRequest', () => {
     expect(toSyncRequest(p)).toEqual({
       sentAt: p.sentAt,
       schema: 1,
-      addonVersion: '0.1.0',
+      addonVersion: '1.0.0',
       characters: [p.character],
     });
     expect(contract.validate('sync.request', toSyncRequest(p))).toEqual({ ok: true });

@@ -11,7 +11,7 @@ Client visé : WoW: Forever 1.60.x (interface 16001). Langues : français, angla
    ```
    World of Warcraft\_forever_\Interface\AddOns\ForeverTracker\ForeverTracker.toc
    ```
-   (et pas `...\AddOns\ForeverTracker-0.1.0\ForeverTracker\...` : si ton outil de décompression crée un dossier en plus, déplace `ForeverTracker` d'un niveau).
+   (et pas `...\AddOns\ForeverTracker-1.0.0\ForeverTracker\...` : si ton outil de décompression crée un dossier en plus, déplace `ForeverTracker` d'un niveau).
 3. Lance le jeu ; à l'écran de sélection des persos, bouton **AddOns** : vérifie que ForeverTracker est coché.
 4. En jeu, tape `/ftr` : l'addon affiche ton perso et son niveau.
 

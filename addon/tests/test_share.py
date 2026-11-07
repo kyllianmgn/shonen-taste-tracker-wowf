@@ -136,7 +136,7 @@ def test_code_decodes_and_matches_the_schema(wow, validator):
     payload = decode_share_code(code)
     validator.validate(payload)
     assert payload["schema"] == 1
-    assert payload["addonVersion"] == "0.1.0"
+    assert payload["addonVersion"] == "1.0.0"
     assert payload["sentAt"] == LOGIN_TIME + 60
     character = payload["character"]
     assert character["key"] == {
