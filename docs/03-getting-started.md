@@ -442,6 +442,7 @@ flutter run -d windows --dart-define=API_BASE_URL=http://localhost:3000
 ### M6 — Mise en production
 
 - [x] **S-21** `Dockerfile`, `docker-compose.yml` de prod, entrée Caddy, sauvegarde `pg_dump` quotidienne, doc de déploiement.
+- [x] **S-23** Logs d'entrée en donjon : `DUNGEON_ENTER` publié dans le salon logs (🏰), masqué par `hide_zone`.
 - [ ] **S-22** Test de bout en bout réel : jeu + addon + appli + bot sur le serveur de test, puis mode de base avec un 2e joueur sans appli.
 
 ## Prompts de lancement

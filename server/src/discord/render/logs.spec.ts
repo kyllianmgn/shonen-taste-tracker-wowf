@@ -2,6 +2,7 @@ import type { SessionRecap } from '../../presence/session-recap';
 import {
   LOG_MAX_MESSAGE_CHARS,
   renderDeathLog,
+  renderDungeonEnterLog,
   renderGuildJoinLog,
   renderLevel60Log,
   renderBaseModeSessionEndLog,
@@ -161,6 +162,18 @@ describe('renderDeathLog', () => {
   it('uses the masculine form by default and drops what is unknown or hidden', () => {
     expect(renderDeathLog({ character: DAVINA, female: false, level: null, zone: 'Duskwood', hideZone: true })).toBe(
       '💀 Davina Asaria est mort',
+    );
+  });
+});
+
+describe('renderDungeonEnterLog', () => {
+  it('matches the reference message', () => {
+    expect(renderDungeonEnterLog({ character: DAVINA, instance: 'Les Mortemines' })).toBe('🏰 Davina Asaria entre dans Les Mortemines');
+  });
+
+  it('neutralizes markdown and mention syntax coming from the game', () => {
+    expect(renderDungeonEnterLog({ character: DAVINA, instance: '@everyone *x* <#1>' })).toBe(
+      '🏰 Davina Asaria entre dans @\u200beveryone \\*x\\* \\<#1>',
     );
   });
 });

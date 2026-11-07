@@ -87,8 +87,16 @@ describe('eventLogLine', () => {
     expect(eventLogLine({ type: 'GUILD_CHANGE', data: { to: '' } }, CTX)).toBeNull();
   });
 
+  it('renders dungeon entries, never with hide_zone nor without an instance name', () => {
+    const enter = { type: 'DUNGEON_ENTER', data: { instanceName: 'Les Mortemines', instanceId: 36 } };
+    expect(eventLogLine(enter, CTX)).toBe('🏰 Davina Asaria entre dans Les Mortemines');
+    expect(eventLogLine(enter, { ...CTX, hideZone: true })).toBeNull();
+    expect(eventLogLine({ type: 'DUNGEON_ENTER', data: { instanceId: 36 } }, CTX)).toBeNull();
+    expect(eventLogLine({ type: 'DUNGEON_ENTER', data: { instanceName: '  ' } }, CTX)).toBeNull();
+  });
+
   it('posts nothing for the other event types', () => {
-    for (const type of ['SESSION_START', 'SESSION_END', 'DUNGEON_ENTER', 'PROFESSION_TIER']) {
+    for (const type of ['SESSION_START', 'SESSION_END', 'PROFESSION_TIER']) {
       expect(eventLogLine({ type, data: { level: 30 } }, CTX)).toBeNull();
     }
   });
