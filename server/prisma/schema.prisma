@@ -83,10 +83,11 @@ model Character {
   bnetVerified   Boolean @default(false) @map("bnet_verified")
   lastSnapshotId BigInt? @map("last_snapshot_id")
 
-  owner     Player?       @relation(fields: [ownerId], references: [discordUserId], onDelete: SetNull)
-  snapshots Snapshot[]
-  sessions  GameSession[]
-  events    GameEvent[]
+  owner          Player?         @relation(fields: [ownerId], references: [discordUserId], onDelete: SetNull)
+  snapshots      Snapshot[]
+  sessions       GameSession[]
+  events         GameEvent[]
+  bnetPublicPoll BnetPublicPoll?
 
   // At most one main and one alt per owner.
   @@unique([ownerId], map: "character_one_main_per_owner", where: raw("role = 'main'"))
@@ -144,6 +145,23 @@ model Snapshot {
   @@map("snapshot")
 }
 
+/// Public profile readings of a character (S-20, docs/02 « Fiche publique »).
+model BnetPublicPoll {
+  characterId  BigInt    @id @map("character_id")
+  /// Last-Modified of the last 200, sent back as If-Modified-Since.
+  lastModified String?   @map("last_modified")
+  /// Latest last_login_timestamp seen: « vu il y a X » and deduced session ends.
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  /// Last reading that changed the level or the equipment.
+  changedAt    DateTime? @map("changed_at") @db.Timestamptz(6)
+  nextPollAt   DateTime  @map("next_poll_at") @db.Timestamptz(6)
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([nextPollAt])
+  @@map("bnet_public_poll")
+}
+
 model GameSession {
   id          BigInt    @id @default(autoincrement())
   ownerId     String    @map("owner_id")
@@ -151,7 +169,7 @@ model GameSession {
   characterId BigInt?   @map("character_id")
   startedAt   DateTime  @map("started_at") @db.Timestamptz(6)
   endedAt     DateTime? @map("ended_at") @db.Timestamptz(6)
-  /// game_closed | heartbeat_timeout
+  /// game_closed | heartbeat_timeout | character_changed | bnet_logout (deduced from the public profile)
   endReason   String?   @map("end_reason")
   levelStart  Int?      @map("level_start")
   levelEnd    Int?      @map("level_end")

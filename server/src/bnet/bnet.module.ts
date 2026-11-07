@@ -13,6 +13,11 @@ import { BNET_USER_TOKEN_SINK } from './oauth/user-token-sink';
 import { BnetAccountPoller } from './polling/bnet-account-poller.service';
 import { BnetPollingJob } from './polling/bnet-polling.job';
 import { BNET_POLL_CLOCK, systemPollClock } from './polling/poll-clock';
+import { BnetPublicPoller } from './public/bnet-public-poller.service';
+import { PrismaPublicPollStore } from './public/prisma-public-poll.store';
+import { PUBLIC_POLL_STORE } from './public/public-poll.store';
+import { PublicProfileGate } from './public/public-profile-gate';
+import { PublicProfileProbe } from './public/public-profile-probe.service';
 
 export const bnetClientProvider: FactoryProvider<BnetClient> = {
   provide: BnetClient,
@@ -21,8 +26,9 @@ export const bnetClientProvider: FactoryProvider<BnetClient> = {
 };
 
 /**
- * Player OAuth, base-mode polling and the Blizzard Forever API client (docs/02 « Modules »). The Discord side of the
- * link (reply edit, DM, admin notice) comes from DiscordModule through BNET_LINK_NOTIFIER.
+ * Player OAuth, base-mode polling (account profile S-18, public profile S-20) and the Blizzard Forever API client
+ * (docs/02 « Modules »). The Discord side of the link (reply edit, DM, admin notice) comes from DiscordModule through
+ * BNET_LINK_NOTIFIER.
  */
 @Module({
   imports: [CoreModule, DiscordModule],
@@ -35,9 +41,14 @@ export const bnetClientProvider: FactoryProvider<BnetClient> = {
     { provide: BNET_POLL_CLOCK, useValue: systemPollClock },
     BnetAccountPoller,
     BnetPollingJob,
+    // Public profile (S-20): scheduled by JobsModule (bnet-public-*.job.ts).
+    { provide: PUBLIC_POLL_STORE, useClass: PrismaPublicPollStore },
+    PublicProfileGate,
+    PublicProfileProbe,
+    BnetPublicPoller,
     OauthStateService,
     BnetLinkService,
   ],
-  exports: [BnetClient, OauthStateService],
+  exports: [BnetClient, OauthStateService, PublicProfileProbe, BnetPublicPoller],
 })
 export class BnetModule {}

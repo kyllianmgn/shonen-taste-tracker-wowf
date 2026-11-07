@@ -27,3 +27,22 @@ export function boardPresence(
   const latest = Math.max(-Infinity, ...seen);
   return { online, lastSeenAt: Number.isFinite(latest) ? new Date(latest) : null };
 }
+
+export interface BaseModeCharacterData {
+  snapshot: { source: string; receivedAt: Date } | null;
+  /** bnet_public_poll.last_login_at (S-20). */
+  lastLoginAt: Date | null;
+}
+
+/**
+ * « Vu » of a base-mode player (docs/02 « Affichage en mode de base »): the latest
+ * `last_login_timestamp` or data received over their characters. A public profile snapshot is
+ * read minutes after the logout, so its reading time only counts without a login timestamp.
+ */
+export function baseModeSeenAt(characters: readonly BaseModeCharacterData[]): Date | null {
+  const times = characters.flatMap(({ snapshot, lastLoginAt }) => {
+    const received = snapshot && !(snapshot.source === 'bnet_public' && lastLoginAt) ? snapshot.receivedAt : null;
+    return [received, lastLoginAt].filter((t) => t !== null).map((t) => t.getTime());
+  });
+  return times.length > 0 ? new Date(Math.max(...times)) : null;
+}
