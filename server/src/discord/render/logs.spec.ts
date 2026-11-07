@@ -4,6 +4,7 @@ import {
   renderDeathLog,
   renderGuildJoinLog,
   renderLevel60Log,
+  renderBaseModeSessionEndLog,
   renderLevelUpLog,
   renderSessionEndLog,
   renderSessionStartLog,
@@ -46,6 +47,23 @@ describe('renderSessionStartLog', () => {
 
   it('names only the member while the character is unknown', () => {
     expect(renderSessionStartLog({ discordUserId: USER, character: null, level: null })).toBe(`🟢 <@${USER}> est en jeu`);
+  });
+});
+
+describe('renderBaseModeSessionEndLog', () => {
+  it('uses the short form, without duration (docs/02 « Affichage en mode de base »)', () => {
+    expect(renderBaseModeSessionEndLog({ discordUserId: USER, character: DAVINA, recap: recap() })).toBe(
+      '⚫ Davina Asaria : niv. 21 → 23',
+    );
+  });
+
+  it('shows a single level when it did not change, and names the member without character', () => {
+    expect(
+      renderBaseModeSessionEndLog({ discordUserId: USER, character: DAVINA, recap: recap({ levelStart: 23, levelEnd: 23 }) }),
+    ).toBe('⚫ Davina Asaria : niv. 23');
+    expect(
+      renderBaseModeSessionEndLog({ discordUserId: USER, character: null, recap: recap({ levelStart: null, levelEnd: null }) }),
+    ).toBe(`⚫ <@${USER}> : session terminée`);
   });
 });
 

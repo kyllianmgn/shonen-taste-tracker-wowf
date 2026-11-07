@@ -216,6 +216,13 @@ describe('LogsPublisher', () => {
       expect(posted()).toEqual(['⚫ Davina Asaria : 1 h de jeu · niv. 21 → 23 · +38 po · fin à Darkshire']);
     });
 
+    it('posts the short form for a base-mode session end deduced from Battle.net', async () => {
+      await publisher.onSessionEnded(ended({ reason: 'bnet_logout' }));
+      await advance(LOG_GROUP_WINDOW_MS);
+
+      expect(posted()).toEqual(['⚫ Davina Asaria : niv. 21 → 23']);
+    });
+
     it('posts nothing for a quiet session', async () => {
       await publisher.onSessionEnded(ended({ quiet: true }));
       await advance(LOG_GROUP_WINDOW_MS);
