@@ -1,4 +1,4 @@
-import { boardPresence } from './board-presence';
+import { baseModeSeenAt, boardPresence } from './board-presence';
 
 const NOW = new Date('2026-11-06T12:00:00Z');
 const HEARTBEAT_SEC = 600;
@@ -43,5 +43,35 @@ describe('boardPresence', () => {
     const devices = [{ gameRunning: true, lastSeenAt: minutesAgo(1), revokedAt: minutesAgo(0) }];
 
     expect(boardPresence(devices, NOW, HEARTBEAT_SEC)).toEqual({ online: false, lastSeenAt: minutesAgo(1) });
+  });
+});
+
+describe('baseModeSeenAt', () => {
+  it('is null without any data', () => {
+    expect(baseModeSeenAt([])).toBeNull();
+    expect(baseModeSeenAt([{ snapshot: null, lastLoginAt: null }])).toBeNull();
+  });
+
+  it('uses the last snapshot received', () => {
+    const seen = baseModeSeenAt([
+      { snapshot: { source: 'bnet_account', receivedAt: minutesAgo(40) }, lastLoginAt: null },
+      { snapshot: { source: 'manual', receivedAt: minutesAgo(20) }, lastLoginAt: null },
+    ]);
+    expect(seen).toEqual(minutesAgo(20));
+  });
+
+  it('prefers last_login_timestamp to the time a public profile snapshot was read', () => {
+    const seen = baseModeSeenAt([{ snapshot: { source: 'bnet_public', receivedAt: minutesAgo(5) }, lastLoginAt: minutesAgo(50) }]);
+    expect(seen).toEqual(minutesAgo(50));
+  });
+
+  it('keeps a more recent /sync over last_login_timestamp', () => {
+    const seen = baseModeSeenAt([{ snapshot: { source: 'manual', receivedAt: minutesAgo(5) }, lastLoginAt: minutesAgo(50) }]);
+    expect(seen).toEqual(minutesAgo(5));
+  });
+
+  it('falls back to a public profile snapshot without last_login_timestamp', () => {
+    const seen = baseModeSeenAt([{ snapshot: { source: 'bnet_public', receivedAt: minutesAgo(5) }, lastLoginAt: null }]);
+    expect(seen).toEqual(minutesAgo(5));
   });
 });

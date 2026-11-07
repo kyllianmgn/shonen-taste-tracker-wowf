@@ -5,7 +5,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { playerMode } from '../../core/players/player-mode';
 import type { BoardCharacter, BoardPlayer, BoardSnapshot, BoardSort } from '../render/board';
 import type { BoardStore, LoadedBoard } from './board-ports';
-import { boardPresence } from './board-presence';
+import { baseModeSeenAt, boardPresence } from './board-presence';
 
 const SORTS: readonly BoardSort[] = ['level', 'played', 'name'];
 
@@ -15,6 +15,7 @@ interface CharacterRow {
   classFile: string | null;
   role: string | null;
   lastSnapshotId: bigint | null;
+  bnetPublicPoll: { lastLoginAt: Date | null } | null;
 }
 
 /** guild_config, memberships, characters, snapshots and devices, read for the board. */
@@ -60,7 +61,14 @@ export class PrismaBoardStore implements BoardStore {
                 hidePresence: true,
                 characters: {
                   where: { role: { in: ['main', 'alt'] } },
-                  select: { firstName: true, surname: true, classFile: true, role: true, lastSnapshotId: true },
+                  select: {
+                    firstName: true,
+                    surname: true,
+                    classFile: true,
+                    role: true,
+                    lastSnapshotId: true,
+                    bnetPublicPoll: { select: { lastLoginAt: true } },
+                  },
                 },
                 devices: { select: { gameRunning: true, lastSeenAt: true, revokedAt: true } },
               },
@@ -77,9 +85,9 @@ export class PrismaBoardStore implements BoardStore {
       (
         await this.prisma.snapshot.findMany({
           where: { id: { in: snapshotIds } },
-          select: { id: true, level: true, xp: true, xpMax: true, playedTotal: true, zone: true, receivedAt: true },
+          select: { id: true, level: true, xp: true, xpMax: true, playedTotal: true, zone: true, receivedAt: true, source: true },
         })
-      ).map(({ id, receivedAt, ...snapshot }) => [id, { snapshot: snapshot satisfies BoardSnapshot, receivedAt }]),
+      ).map(({ id, receivedAt, source, ...snapshot }) => [id, { snapshot: snapshot satisfies BoardSnapshot, receivedAt, source }]),
     );
     const snapshotOf = (row: CharacterRow) => (row.lastSnapshotId === null ? undefined : snapshots.get(row.lastSnapshotId));
     const character = (rows: CharacterRow[], role: 'main' | 'alt'): BoardCharacter | null => {
@@ -101,9 +109,13 @@ export class PrismaBoardStore implements BoardStore {
         guild: { boardSort: SORTS.includes(guild.boardSort as BoardSort) ? (guild.boardSort as BoardSort) : 'level' },
         players: players.map((p): BoardPlayer => {
           const mode = playerMode(p.devices, now);
-          // Base mode: no heartbeat to trust, « vu » is the last data received (docs/02 « Affichage en mode de base »).
+          // Base mode: no heartbeat to trust, « vu » is the last login or data received (docs/02 « Affichage en mode de base »).
           const latestDataAt =
-            mode === 'base' ? latest(p.characters.map((c) => snapshotOf(c)?.receivedAt ?? null)) : null;
+            mode === 'base'
+              ? baseModeSeenAt(
+                  p.characters.map((c) => ({ snapshot: snapshotOf(c) ?? null, lastLoginAt: c.bnetPublicPoll?.lastLoginAt ?? null })),
+                )
+              : null;
           return {
             discordUserId: p.discordUserId,
             mode,
@@ -125,8 +137,4 @@ export class PrismaBoardStore implements BoardStore {
   async disableBoard(guildId: string): Promise<void> {
     await this.prisma.guildConfig.update({ where: { guildId }, data: { boardChannelId: null, boardMessageIds: [] } });
   }
-}
-
-function latest(dates: (Date | null)[]): Date | null {
-  return dates.reduce<Date | null>((a, b) => (b !== null && (a === null || b > a) ? b : a), null);
 }

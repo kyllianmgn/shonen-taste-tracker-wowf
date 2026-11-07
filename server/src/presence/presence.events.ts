@@ -25,7 +25,11 @@ export interface SessionEndedEvent {
   characterId: bigint | null;
   startedAt: Date;
   endedAt: Date;
-  reason: EndReason;
+  /**
+   * `bnet_logout`: base-mode session end deduced from the public profile's last_login_timestamp
+   * (S-20). Start unknown: startedAt = endedAt, no duration, only levels in the recap.
+   */
+  reason: EndReason | 'bnet_logout';
   recap: SessionRecap;
   /** Under 2 min without any change: closed without log (docs/02 « Récap de session »). */
   quiet: boolean;

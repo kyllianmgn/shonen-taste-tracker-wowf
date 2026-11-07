@@ -68,11 +68,8 @@ export function renderSessionEndLog(input: {
   const { recap, privacy } = input;
   const parts: string[] = [];
   if (!privacy.hidePresence) parts.push(`${formatDuration(recap.durationSec)} de jeu`);
-  if (recap.levelStart !== null && recap.levelEnd !== null && recap.levelStart !== recap.levelEnd) {
-    parts.push(`niv. ${recap.levelStart} → ${recap.levelEnd}`);
-  } else if ((recap.levelEnd ?? recap.levelStart) !== null) {
-    parts.push(`niv. ${recap.levelEnd ?? recap.levelStart}`);
-  }
+  const levels = levelPart(recap);
+  if (levels) parts.push(levels);
   if (!privacy.hideMoney && recap.moneyDelta !== null && recap.moneyDelta !== 0) {
     parts.push(formatSignedMoney(BigInt(recap.moneyDelta)));
   }
@@ -82,6 +79,28 @@ export function renderSessionEndLog(input: {
 
   const who = input.character ? name(input.character) : mention(input.discordUserId);
   return `⚫ ${who} : ${parts.length ? parts.join(SEP) : 'session terminée'}`;
+}
+
+/**
+ * Base mode (docs/02 « Affichage en mode de base »): a session end deduced from Battle.net's
+ * last_login_timestamp (S-20) only knows the levels: « ⚫ Davina Asaria : niv. 21 → 23 ».
+ */
+export function renderBaseModeSessionEndLog(input: {
+  discordUserId: string;
+  character: LogCharacter | null;
+  recap: SessionRecap;
+}): string {
+  const who = input.character ? name(input.character) : mention(input.discordUserId);
+  return `⚫ ${who} : ${levelPart(input.recap) ?? 'session terminée'}`;
+}
+
+/** « niv. 21 → 23 », « niv. 23 » when unchanged, null when unknown. */
+function levelPart(recap: SessionRecap): string | null {
+  if (recap.levelStart !== null && recap.levelEnd !== null && recap.levelStart !== recap.levelEnd) {
+    return `niv. ${recap.levelStart} → ${recap.levelEnd}`;
+  }
+  const level = recap.levelEnd ?? recap.levelStart;
+  return level === null ? null : `niv. ${level}`;
 }
 
 export function renderLevelUpLog(input: { character: LogCharacter; level: number; playedTotal: number | null }): string {

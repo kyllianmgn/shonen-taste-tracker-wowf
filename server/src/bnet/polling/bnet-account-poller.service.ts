@@ -11,8 +11,8 @@ import { judgeSnapshot, type SyncFlag } from '../../ingest/sync/sync-rules';
 import { SYNC_EVENTS, type CharacterUpdatedEvent, type EventRecordedEvent } from '../../ingest/sync/sync.events';
 import { BnetClient, BnetUnauthorizedError, type BnetAccountProfile } from '../client';
 import { accountCharacters, type AccountCharacter } from '../oauth/account-characters';
-import { deduceLevelUps } from './level-ups';
 import { BNET_POLL_CLOCK, type PollClock } from './poll-clock';
+import { recordLevelUps } from './record-level-ups';
 
 type Tx = Prisma.TransactionClient;
 
@@ -153,28 +153,8 @@ export class BnetAccountPoller {
       data: { lastSnapshotId: snapshot.id, ...identityFields(found) },
     });
 
-    const events = previous ? await this.recordLevelUps(tx, character.id, previous.level, level, now, flags) : [];
+    const events = previous ? await recordLevelUps(tx, character.id, previous.level, level, now, flags) : [];
     return { characterId: character.id, role: roleOf(character.role), snapshot, events, flags };
-  }
-
-  /**
-   * One LEVEL_UP per level gained, `bnet-<character_id>-<level>`. Levels the addon already reported
-   * (a /sync carrying its own LEVEL_UP) are skipped, so a level is never deduced twice.
-   */
-  private async recordLevelUps(tx: Tx, characterId: bigint, from: number, to: number, at: Date, flags: SyncFlag[]) {
-    const known = await tx.gameEvent.findMany({ where: { characterId, type: 'LEVEL_UP' }, select: { data: true } });
-    const reported = new Set(known.map((e) => (e.data as { level?: unknown } | null)?.level).filter((l) => typeof l === 'number'));
-    const deduced = deduceLevelUps(characterId, from, to, at).filter((e) => !reported.has(e.data.level));
-    if (deduced.length === 0) return [];
-    const inserted = await tx.gameEvent.createManyAndReturn({
-      data: deduced.map((e) => ({ characterId, eventId: e.eventId, type: e.type, at: e.at, data: e.data, flags })),
-      skipDuplicates: true,
-      select: { id: true, eventId: true, type: true, at: true, data: true },
-    });
-    const order = new Map(deduced.map((e, i) => [e.eventId, i] as const));
-    return inserted
-      .sort((a, b) => order.get(a.eventId)! - order.get(b.eventId)!)
-      .map((e) => ({ ...e, data: e.data as Record<string, unknown> }));
   }
 
   /** Same internal events as a sync, after commit; listener failures never undo the reading. */
