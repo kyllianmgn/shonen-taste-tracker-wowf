@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { retryOnUniqueViolation } from '../../common/prisma/unique-violation';
 import type { Prisma } from '../../generated/prisma/client';
 import { normalizeCharacterName } from './character-name';
+import { CHARACTER_EVENTS, type CharacterTrackedEvent } from './character.events';
 import type {
   AddCharacterInput,
   AddCharacterResult,
@@ -43,10 +45,14 @@ const roleOf = (c: { role: string | null }): CharacterRole =>
  * character, at most one main and one alt per player, identity region + lower(names).
  * Every operation locks the player row, so a player's own commands never interleave; races between
  * players on a new character end on the unique index and are replayed.
+ * A character that becomes main or alt from new or untracked emits `character.tracked` after commit.
  */
 @Injectable()
 export class CharacterService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly emitter?: EventEmitter2,
+  ) {}
 
   async add(input: AddCharacterInput): Promise<AddCharacterResult> {
     const firstName = normalizeCharacterName(input.firstName);
@@ -54,7 +60,7 @@ export class CharacterService {
     if (!firstName || !surname) return { status: 'invalid_name' };
     const name = { region: input.region, firstName, surname };
 
-    return this.withRetry(() =>
+    const result: AddCharacterResult = await this.withRetry(() =>
       this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`INSERT INTO player (discord_user_id) VALUES (${input.ownerId}) ON CONFLICT DO NOTHING`;
         await this.lockPlayer(tx, input.ownerId);
@@ -88,12 +94,16 @@ export class CharacterService {
         return { status: 'added', character: ref(character), role, created: !existing };
       }),
     );
+    if (result.status === 'added') this.emitTracked(input.ownerId, result.character, result.role);
+    return result;
   }
 
   /** The character becomes main; the former main becomes alt (refused if that would track 3). */
   async setMain(ownerId: string, characterId: bigint): Promise<SetMainResult> {
-    return this.withRetry(() =>
+    let wasUntracked = false;
+    const result: SetMainResult = await this.withRetry(() =>
       this.prisma.$transaction(async (tx) => {
+        wasUntracked = false;
         await this.lockPlayer(tx, ownerId);
         const target = await tx.character.findFirst({ where: { id: characterId, ownerId } });
         if (!target) return { status: 'not_found' };
@@ -109,14 +119,17 @@ export class CharacterService {
         if (role === 'alt') await tx.character.update({ where: { id: target.id }, data: { role: 'untracked' } });
         if (main) await tx.character.update({ where: { id: main.id }, data: { role: 'alt' } });
         await tx.character.update({ where: { id: target.id }, data: { role: 'main' } });
+        wasUntracked = role === 'untracked';
         return { status: 'promoted', character: ref(target), demoted: main ? toRef(main) : null };
       }),
     );
+    if (result.status === 'promoted' && wasUntracked) this.emitTracked(ownerId, result.character, 'main');
+    return result;
   }
 
   /** The character becomes alt; the former alt becomes untracked. The main is refused. */
   async setAlt(ownerId: string, characterId: bigint): Promise<SetAltResult> {
-    return this.withRetry(() =>
+    const result: SetAltResult = await this.withRetry(() =>
       this.prisma.$transaction(async (tx) => {
         await this.lockPlayer(tx, ownerId);
         const target = await tx.character.findFirst({ where: { id: characterId, ownerId } });
@@ -131,6 +144,9 @@ export class CharacterService {
         return { status: 'set', character: ref(target), replaced: alt ? toRef(alt) : null };
       }),
     );
+    // Only an untracked character can become alt here: main is refused, alt answers already_alt.
+    if (result.status === 'set') this.emitTracked(ownerId, result.character, 'alt');
+    return result;
   }
 
   /**
@@ -227,6 +243,22 @@ export class CharacterService {
           a.firstName.localeCompare(b.firstName, 'fr') ||
           a.surname.localeCompare(b.surname, 'fr'),
       );
+  }
+
+  /** Listener failures must not fail a command whose transaction is committed. */
+  private emitTracked(ownerId: string, character: CharacterRef, role: TrackedRole): void {
+    const event: CharacterTrackedEvent = {
+      characterId: character.id,
+      ownerId,
+      role,
+      firstName: character.firstName,
+      surname: character.surname,
+    };
+    try {
+      this.emitter?.emit(CHARACTER_EVENTS.tracked, event);
+    } catch {
+      // Listeners log their own errors.
+    }
   }
 
   private trackedOf(tx: Tx, ownerId: string): Promise<OwnedCharacter[]> {
