@@ -58,7 +58,7 @@ Remplir `.env` :
 | `BNET_CLIENT_ID`, `BNET_CLIENT_SECRET` | develop.battle.net |
 | `BNET_REDIRECT_URI` | `https://<domaine>/oauth/bnet/callback`, identique à celle déclarée chez Blizzard |
 | `TOKEN_ENC_KEY` | la clé générée. **La garder ailleurs aussi** : sans elle, les jetons du mode de base d'une sauvegarde sont illisibles. |
-| `APP_DOWNLOAD_URL` | page des releases de l'appli compagnon |
+| `APP_DOWNLOAD_URL` | page des releases de l'appli compagnon (`.../releases/latest`) ; la release addon est publiée avec `--latest=false` pour ne pas la masquer |
 | autres | valeurs par défaut de `.env.example` (détail : docs/02 « Variables d'environnement ») |
 
 Le serveur refuse de démarrer si une variable obligatoire manque ou est mal formée, et liste les variables en cause dans ses logs (jamais leurs valeurs).
