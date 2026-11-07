@@ -225,6 +225,28 @@ def test_the_window_is_shown_once_not_reopened_each_tick(wow):
     assert len(calls) == 1
 
 
+def test_window_is_compact_and_anchored_top_left(wow):
+    logged_in(wow)
+    frame = window(wow)
+    assert frame.width <= 260 and frame.height <= 110
+    assert frame.points[1][1] == "TOPLEFT"
+
+
+def test_showing_the_window_plays_a_sound_once(wow):
+    logged_in(wow)
+    assert len(wow.wow.sounds) == 0
+    wow.advance(15 * 60 + 10 * TICK)
+    assert shown(wow)
+    assert list(wow.wow.sounds.values()) == [567]
+
+
+def test_window_does_not_fail_without_a_sound_api(wow):
+    logged_in(wow)
+    wow._run("PlaySound = nil", "nosound")
+    wow.advance(15 * 60)
+    assert shown(wow)
+
+
 def test_showing_the_window_asks_for_played_time(wow):
     logged_in(wow)
     before = wow.wow.playedRequests

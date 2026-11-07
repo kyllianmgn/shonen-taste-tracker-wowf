@@ -87,8 +87,8 @@ BINDING_NAME_FOREVERTRACKER_SYNC = L.BINDING_SYNC
 local window = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplateWithInset")
 ns.syncWindow = window
 window:Hide()
-window:SetSize(340, 130)
-window:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
+window:SetSize(260, 104)
+window:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 20, -20)
 window:SetFrameStrata("DIALOG")
 window:SetClampedToScreen(true)
 window:SetMovable(true)
@@ -99,25 +99,25 @@ window:SetScript("OnDragStop", window.StopMovingOrSizing)
 if window.TitleText then window.TitleText:SetText("ForeverTracker") end
 
 window.text = window:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-window.text:SetPoint("TOP", window, "TOP", 0, -36)
-window.text:SetWidth(300)
+window.text:SetPoint("TOP", window, "TOP", 0, -28)
+window.text:SetWidth(230)
 window.text:SetText(L.SYNC_PROMPT)
 
 window.syncButton = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
-window.syncButton:SetSize(130, 24)
-window.syncButton:SetPoint("BOTTOMRIGHT", window, "BOTTOM", -6, 36)
+window.syncButton:SetSize(112, 22)
+window.syncButton:SetPoint("BOTTOMRIGHT", window, "BOTTOM", -4, 32)
 window.syncButton:SetText(L.SYNC_BUTTON)
 window.syncButton:SetScript("OnClick", function() ns.SyncNow() end)
 
 window.laterButton = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
-window.laterButton:SetSize(130, 24)
-window.laterButton:SetPoint("BOTTOMLEFT", window, "BOTTOM", 6, 36)
+window.laterButton:SetSize(112, 22)
+window.laterButton:SetPoint("BOTTOMLEFT", window, "BOTTOM", 4, 32)
 window.laterButton:SetText(L.LATER_BUTTON)
 window.laterButton:SetScript("OnClick", function() window:Hide() end)
 
 window.dontAsk = CreateFrame("CheckButton", nil, window, "UICheckButtonTemplate")
 window.dontAsk:SetSize(22, 22)
-window.dontAsk:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 18, 10)
+window.dontAsk:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 14, 8)
 window.dontAskLabel = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 window.dontAskLabel:SetPoint("LEFT", window.dontAsk, "RIGHT", 2, 0)
 window.dontAskLabel:SetText(L.DONT_ASK)
@@ -157,6 +157,10 @@ function ns.CheckSyncPrompt()
   if not ns.character or window:IsShown() then return end
   if not wantsWindow(GetServerTime()) then return end
   if not ns.IsSafeToSync() then return end
+  -- Audible cue; guarded since the sound API is not part of the contract.
+  if PlaySound and SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_OPEN then
+    PlaySound(SOUNDKIT.IG_QUEST_LIST_OPEN)
+  end
   window:Show()
   -- So that playedTotal is fresh by the time the player clicks.
   ns.RequestPlayed()
