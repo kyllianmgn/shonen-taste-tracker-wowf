@@ -20,6 +20,7 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "rewriteRelativeImportExtensions": true,
     "types": ["node", "jest"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "prisma.config.ts"]
