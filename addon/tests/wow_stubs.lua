@@ -6,6 +6,7 @@
 --   WowTest.click(f)   simulate a mouse click (hardware event) on a frame
 --   WowTest.slash(s)   simulate a typed slash command (hardware event)
 --   WowTest.reloadCalls list of ReloadUI() calls, each { hardware = bool }
+--   WowTest.sounds      ids passed to PlaySound(), in order
 
 local WowTest = {}
 _G.WowTest = WowTest
@@ -95,6 +96,7 @@ WowTest.frames = {}
 WowTest.timers = {}
 WowTest.reloadCalls = {}
 WowTest.playedRequests = 0
+WowTest.sounds = {}
 WowTest.hardware = false
 
 -- ---------------------------------------------------------------------------
@@ -385,8 +387,11 @@ function Frame:GetChecked() return self.checked == true end
 function Frame:SetSize(w, h) self.width, self.height = w, h end
 function Frame:SetWidth(w) self.width = w end
 function Frame:SetHeight(h) self.height = h end
-function Frame:SetPoint(...) end
-function Frame:ClearAllPoints() end
+function Frame:SetPoint(...)
+  self.points = self.points or {}
+  table.insert(self.points, { ... })
+end
+function Frame:ClearAllPoints() self.points = nil end
 function Frame:SetAllPoints(...) end
 function Frame:SetFrameStrata(strata) self.strata = strata end
 function Frame:SetMovable(movable) self.movable = movable end
@@ -443,6 +448,9 @@ function CreateFrame(frameType, name, parent, template)
   if name then _G[name] = frame end
   return frame
 end
+
+SOUNDKIT = { IG_QUEST_LIST_OPEN = 567 }
+function PlaySound(id) table.insert(WowTest.sounds, id) end
 
 UIParent = CreateFrame("Frame", "UIParent")
 UISpecialFrames = {}
