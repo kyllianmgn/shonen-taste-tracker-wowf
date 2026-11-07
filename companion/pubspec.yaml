@@ -34,7 +34,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   tray_manager: 0.5.3
-  window_manager: 0.5.2
+  window_manager: 0.6.0
   logging: ^1.3.0
   ffi: ^2.2.0
   http: 1.6.0
